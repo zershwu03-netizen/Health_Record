@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="飲食日記">
+<meta name="theme-color" content="#ffffff">
+<title>飲食日記 · 斷食追蹤</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --bg3: #efefef;
+  --text: #1a1a1a;
+  --text2: #666;
+  --text3: #999;
+  --border: rgba(0,0,0,0.12);
+  --border2: rgba(0,0,0,0.22);
+  --green: #1D9E75;
+  --green-bg: #E1F5EE;
+  --green-text: #085041;
+  --amber: #BA7517;
+  --amber-bg: #FAEEDA;
+  --amber-text: #633806;
+  --red: #A32D2D;
+  --red-bg: #FCEBEB;
+  --red-text: #791F1F;
+  --blue: #185FA5;
+  --blue-bg: #E6F1FB;
+  --blue-text: #0C447C;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e;
+    --bg2: #2c2c2e;
+    --bg3: #3a3a3c;
+    --text: #f2f2f7;
+    --text2: #aeaeb2;
+    --text3: #636366;
+    --border: rgba(255,255,255,0.12);
+    --border2: rgba(255,255,255,0.22);
+    --green-bg: #0a3d2b;
+    --green-text: #5DCAA5;
+    --amber-bg: #3d2a05;
+    --amber-text: #FAC775;
+    --red-bg: #3d0f0f;
+    --red-text: #F09595;
+    --blue-bg: #0a2240;
+    --blue-text: #85B7EB;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, 'Helvetica Neue', sans-serif; font-size: 15px; overflow: hidden; }
+
+/* Layout */
+#app { display: flex; flex-direction: column; height: 100%; padding-top: var(--safe-top); }
+#content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 0 1rem; }
+#nav { display: flex; background: var(--bg); border-top: 0.5px solid var(--border); padding-bottom: var(--safe-bottom); flex-shrink: 0; }
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 4px; border: none; background: transparent; cursor: pointer; color: var(--text3); font-size: 10px; font-family: inherit; }
+.nav-btn svg { width: 22px; height: 22px; }
+.nav-btn.active { color: var(--green); }
+
+/* Pages */
+.page { display: none; padding: 12px 14px; }
+.page.active { display: block; }
+.page-title { font-size: 22px; font-weight: 600; margin-bottom: 14px; padding-top: 4px; }
+
+/* Cards */
+.card { background: var(--bg2); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; }
+.card-title { font-size: 12px; color: var(--text2); margin-bottom: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }
+
+/* Stats */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.stat { background: var(--bg2); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center; }
+.stat-val { font-size: 22px; font-weight: 600; line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--text2); margin-top: 4px; }
+.c-green { color: var(--green); }
+.c-amber { color: var(--amber); }
+.c-blue { color: var(--blue); }
+.c-red { color: var(--red); }
+
+/* Fasting bar */
+.fast-bar-wrap { position: relative; height: 44px; margin: 4px 0; }
+.fast-track { width: 100%; height: 10px; background: var(--bg3); border-radius: 5px; position: absolute; top: 50%; transform: translateY(-50%); }
+.fast-filled { position: absolute; top: 50%; transform: translateY(-50%); height: 10px; border-radius: 5px; background: var(--green); transition: width 0.5s ease; }
+.eat-zone { position: absolute; top: 50%; transform: translateY(-50%); height: 10px; border-radius: 5px; background: #FAC775; opacity: 0.7; }
+.now-line { position: absolute; top: 2px; width: 2.5px; height: 40px; background: #E24B4A; border-radius: 2px; }
+.bar-hours { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 10px 18px; border-radius: 22px; border: none; cursor: pointer; font-size: 14px; font-family: inherit; font-weight: 500; transition: opacity 0.15s; }
+.btn:active { opacity: 0.75; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-ghost { background: var(--bg3); color: var(--text); }
+.btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 18px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* Quick food grid */
+.quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 12px; }
+.quick-btn { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 6px; cursor: pointer; font-size: 12px; text-align: center; color: var(--text); font-family: inherit; line-height: 1.4; }
+.quick-btn:active { background: var(--bg3); }
+.quick-cal { color: var(--amber); font-weight: 600; display: block; margin-top: 2px; }
+
+/* Form elements */
+.form-group { margin-bottom: 10px; }
+.form-label { display: block; font-size: 12px; color: var(--text2); margin-bottom: 5px; font-weight: 500; }
+input[type=text], input[type=number], input[type=time], select, textarea {
+  width: 100%; padding: 11px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); font-size: 15px; font-family: inherit; outline: none;
+  -webkit-appearance: none; appearance: none;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--green); }
+textarea { resize: none; min-height: 70px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Food list items */
+.food-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.food-item:last-child { border-bottom: none; }
+.food-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.food-info { flex: 1; min-width: 0; }
+.food-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.food-meta { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.food-cal { font-size: 14px; font-weight: 600; color: var(--amber); white-space: nowrap; }
+.del-btn { width: 28px; height: 28px; border-radius: 50%; background: var(--bg3); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text2); font-size: 16px; flex-shrink: 0; }
+.del-btn:active { background: var(--red-bg); color: var(--red); }
+
+/* Tags / badges */
+.tag { display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 20px; }
+.tag-green { background: var(--green-bg); color: var(--green-text); }
+.tag-amber { background: var(--amber-bg); color: var(--amber-text); }
+.tag-red { background: var(--red-bg); color: var(--red-text); }
+.tag-gray { background: var(--bg3); color: var(--text2); }
+
+/* Progress bar */
+.progress-wrap { background: var(--bg3); border-radius: 4px; height: 7px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+
+/* Week dots */
+.week-row { display: flex; justify-content: space-between; }
+.week-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.week-circle { width: 34px; height: 34px; border-radius: 50%; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--text2); }
+.week-circle.logged { background: var(--green-bg); color: var(--green-text); }
+.week-circle.over { background: var(--amber-bg); color: var(--amber-text); }
+.week-circle.today { outline: 2px solid var(--blue); outline-offset: 1px; }
+.week-label { font-size: 10px; color: var(--text3); }
+
+/* History log */
+.history-item { padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+.history-item:last-child { border-bottom: none; }
+.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.history-date { font-size: 14px; font-weight: 500; }
+.history-cal { font-size: 14px; font-weight: 600; color: var(--amber); }
+.history-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* AI */
+.ai-area { min-height: 60px; margin-bottom: 10px; }
+.ai-msg { background: var(--blue-bg); color: var(--text); padding: 12px 14px; border-radius: var(--radius-sm); font-size: 14px; line-height: 1.65; white-space: pre-wrap; margin-bottom: 8px; }
+.ai-loading { color: var(--text2); font-size: 14px; padding: 8px 0; }
+.quick-ask-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+.quick-ask-btn { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 11px 10px; cursor: pointer; font-size: 12px; text-align: center; color: var(--text); font-family: inherit; line-height: 1.4; }
+.quick-ask-btn:active { background: var(--bg3); }
+.ai-input-row { display: flex; gap: 8px; align-items: flex-end; }
+.ai-input-row input { flex: 1; }
+.ai-send { padding: 11px 16px; background: var(--blue); color: #fff; border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; font-family: inherit; font-weight: 500; white-space: nowrap; }
+
+/* Mode buttons */
+.mode-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 12px; }
+.mode-btn { padding: 7px 15px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; cursor: pointer; font-size: 13px; color: var(--text2); font-family: inherit; }
+.mode-btn.sel { background: var(--green); border-color: var(--green); color: #fff; }
+
+/* Toast */
+.toast { position: fixed; bottom: calc(70px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 9px 20px; border-radius: 22px; font-size: 13px; z-index: 999; pointer-events: none; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+.toast.show { opacity: 1; }
+
+.empty-hint { color: var(--text3); font-size: 13px; padding: 8px 0; text-align: center; }
+.section-divider { border-top: 0.5px solid var(--border); padding-top: 10px; margin-top: 8px; }
+
+/* TDEE / BMI result */
+.tdee-result { margin-top: 10px; }
+.tdee-main { background: linear-gradient(135deg, #0F6E56 0%, #1D9E75 100%); border-radius: var(--radius); padding: 16px; text-align: center; margin-bottom: 10px; }
+.tdee-main-num { font-size: 42px; font-weight: 700; color: #fff; line-height: 1; }
+.tdee-main-lbl { font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 4px; }
+.tdee-rows { display: flex; flex-direction: column; gap: 0; }
+.tdee-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+.tdee-row:last-child { border-bottom: none; }
+.tdee-row-val { font-weight: 600; color: var(--text); }
+.bmi-bar-wrap { position: relative; padding-bottom: 16px; }
+.bmi-track { display: flex; height: 8px; border-radius: 4px; overflow: hidden; width: 100%; }
+.bmi-seg { height: 100%; }
+.bmi-needle { position: absolute; top: -3px; width: 3px; height: 14px; background: var(--text); border-radius: 2px; transform: translateX(-50%); }
+.bmi-labels { display: flex; justify-content: space-between; font-size: 9px; color: var(--text3); position: absolute; bottom: 0; left: 0; right: 0; }
+.apply-btn { width: 100%; margin-top: 12px; padding: 12px; background: var(--green); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; }
+.apply-btn:active { opacity: 0.8; }
+.profile-badge { background: var(--green-bg); color: var(--green-text); font-size: 12px; padding: 6px 10px; border-radius: var(--radius-sm); margin-bottom: 10px; font-weight: 500; }
+.home-bmi-card { background: var(--bg2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+.home-bmi-num { font-size: 24px; font-weight: 700; line-height: 1; }
+.home-bmi-info { flex: 1; }
+.home-bmi-label { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.home-bmi-suggest { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* Water tracker */
+.water-cups { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.cup { width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid #378ADD; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+.cup.filled { background: #378ADD; }
+.cup svg { width: 18px; height: 18px; }
+.cup.filled svg { stroke: #fff; }
+.cup:not(.filled) svg { stroke: #378ADD; }
+.water-info { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 6px; }
+.water-ml { font-size: 20px; font-weight: 600; color: #185FA5; }
+.water-goal { color: var(--text2); }
+.water-progress { background: var(--bg3); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 8px; }
+.water-fill { height: 100%; border-radius: 4px; background: #378ADD; transition: width 0.4s; }
+.notif-banner { background: var(--blue-bg); border-radius: var(--radius-sm); padding: 10px 12px; font-size: 13px; color: var(--blue-text); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.notif-dismiss { background: transparent; border: none; cursor: pointer; font-size: 16px; color: var(--blue-text); padding: 0 2px; font-family: inherit; }
+
+.hist-tab{padding:5px 12px;border-radius:5px;border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);font-family:inherit;transition:background 0.15s}
+.hist-tab.active{background:var(--bg);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.weight-entry{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--border);font-size:13px}
+.weight-entry:last-child{border-bottom:none}
+.weight-val{font-size:16px;font-weight:600;color:var(--green)}
+.weight-delta{font-size:11px;font-weight:500}
+.weekly-report-box{background:var(--blue-bg);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;line-height:1.65;color:var(--text);white-space:pre-wrap}
+.fav-btn{padding:6px 10px;background:var(--bg2);border:0.5px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit;color:var(--text);white-space:nowrap;transition:background 0.15s}
+.fav-btn:active{background:var(--green-bg);color:var(--green-text)}
+/* Coach chat */
+.chat-bubble { max-width: 85%; border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.6; word-break: break-word; }
+.chat-bubble.user { background: var(--green); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.chat-bubble.coach { background: var(--bg2); color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; }
+.chat-bubble.coach.warn { background: var(--amber-bg); border-left: 3px solid var(--amber); border-radius: 4px 16px 16px 4px; }
+.chat-bubble.coach.good { background: var(--green-bg); border-left: 3px solid var(--green); border-radius: 4px 16px 16px 4px; }
+.chat-time { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.chat-row { display: flex; flex-direction: column; }
+.chat-row.user { align-items: flex-end; }
+.chat-row.coach { align-items: flex-start; }
+.coach-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; margin-bottom: 4px; }
+.ban-tag { display: inline-flex; align-items: center; gap: 5px; background: var(--red-bg); color: var(--red-text); border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: 500; }
+.ban-tag-del { background: none; border: none; cursor: pointer; color: var(--red-text); font-size: 14px; padding: 0; line-height: 1; font-family: inherit; }
+.typing-dot { display: inline-flex; gap: 3px; padding: 2px 0; }
+.typing-dot span { width: 6px; height: 6px; background: var(--text2); border-radius: 50%; animation: bounce 1.2s infinite; }
+.typing-dot span:nth-child(2){animation-delay:.2s}
+.typing-dot span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="content">
+
+    <!-- HOME -->
+    <div id="page-home" class="page active">
+      <div class="page-title">今日 <span id="today-date" style="font-size:14px;color:var(--text2);font-weight:400"></span></div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-val c-green" id="h-fast">0h</div><div class="stat-lbl">已斷食</div></div>
+        <div class="stat"><div class="stat-val c-amber" id="h-cal">0</div><div class="stat-lbl">kcal</div></div>
+        <div class="stat"><div class="stat-val c-blue" id="h-meals">0</div><div class="stat-lbl">今日餐數</div></div>
+      </div>
+
+      <div id="home-bmi-wrap"></div>
+
+      <div class="card">
+        <div class="card-title">斷食狀況</div>
+
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div style="position:relative;width:84px;height:84px;flex-shrink:0">
+            <svg viewBox="0 0 84 84" style="width:84px;height:84px;transform:rotate(-90deg)">
+              <circle cx="42" cy="42" r="36" fill="none" stroke="var(--bg3)" stroke-width="8"/>
+              <circle cx="42" cy="42" r="36" fill="none" stroke="#378ADD" stroke-width="8"
+                stroke-dasharray="226.2" id="fast-ring" stroke-dashoffset="226.2" stroke-linecap="round"
+                style="transition:stroke-dashoffset 0.6s,stroke 0.4s"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">
+              <div id="fast-h-big" style="font-size:22px;font-weight:700;line-height:1;color:#378ADD">0</div>
+              <div style="font-size:9px;color:var(--text2);letter-spacing:0.3px">小時</div>
+            </div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div id="fast-mode-badge" style="display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--bg3);color:var(--text2);margin-bottom:6px">尚未開始</div>
+            <div id="fast-status-text" style="font-size:13px;color:var(--text);margin-bottom:6px;line-height:1.4">記錄第一筆飲食後開始計時</div>
+            <div style="font-size:12px;color:var(--text2)">最後進食：<span id="last-eat-disp" style="font-weight:500;color:var(--text)">未記錄</span></div>
+          </div>
+        </div>
+
+        <div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:var(--text2)">
+            <span>進食窗口</span>
+            <span id="eat-window-disp" style="font-weight:500;color:var(--text)">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:var(--text2)">
+            <span>已斷食</span>
+            <span id="fast-elapsed-disp" style="font-weight:500;color:var(--text)">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
+            <span>距離 16:8 目標</span>
+            <span id="fast-remain" style="font-weight:500;color:var(--text)">—</span>
+          </div>
+        </div>
+
+        <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;margin-bottom:10px;position:relative">
+          <div id="fast-bar-eat" style="position:absolute;left:0;top:0;height:100%;background:#FAC775;transition:width 0.5s"></div>
+          <div id="fast-bar-fill" style="position:absolute;top:0;height:100%;background:#378ADD;transition:left 0.5s,width 0.5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-bottom:10px">
+          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-green btn-sm" onclick="markEatNow()">記錄剛剛進食</button>
+          <button class="btn btn-ghost btn-sm" onclick="goPage('log')">新增飲食</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">今日飲食</div>
+        <div id="home-food-list"><p class="empty-hint">今天還沒有記錄</p></div>
+        <div class="section-divider" style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--text2)">目標 <span id="cal-goal-disp">1500</span> kcal</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+            <span style="font-size:14px;font-weight:600;color:var(--amber)" id="total-cal-disp">0 kcal</span>
+            <div id="today-spend-wrap"></div>
+          </div>
+        </div>
+        <div class="progress-wrap"><div class="progress-fill" id="cal-bar" style="width:0%;background:#FAC775"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">今日喝水</div>
+        <div id="water-notif-banner" style="display:none" class="notif-banner">
+          <span id="water-notif-text">該喝水了！</span>
+          <button class="notif-dismiss" onclick="dismissWaterNotif()">✕</button>
+        </div>
+        <div class="water-cups" id="water-cups"></div>
+        <div class="water-info">
+          <span><span class="water-ml" id="water-ml">0</span> <span class="water-goal">/ <span id="water-goal-disp">2000</span> ml</span></span>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" onclick="addWater(250)">+250ml</button>
+            <button class="btn btn-sm" style="background:var(--blue-bg);color:var(--blue-text)" onclick="addWater(500)">+500ml</button>
+          </div>
+        </div>
+        <div class="water-progress"><div class="water-fill" id="water-fill" style="width:0%"></div></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px" id="water-next-hint"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">本週</div>
+        <div class="week-row" id="week-row"></div>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div id="page-log" class="page">
+      <div class="page-title">新增飲食</div>
+      <div class="card" id="fav-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div class="card-title" style="margin-bottom:0">我的最愛</div>
+          <span style="font-size:11px;color:var(--text3)">長按可刪除</span>
+        </div>
+        <div id="fav-grid" style="display:flex;flex-wrap:wrap;gap:6px"><p class="empty-hint" style="padding:4px 0">新增後會出現在這裡</p></div>
+      </div>
+      <div class="card">
+        <div class="card-title">台灣外食快選</div>
+        <div class="quick-grid" id="quick-grid"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">自訂輸入</div>
+        <div class="form-group">
+          <label class="form-label">食物名稱</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="f-name" placeholder="糖果、餅乾、蛋糕…任何食物" style="flex:1">
+            <button onclick="inlineLookup()" style="flex-shrink:0;padding:0 14px;height:42px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap">AI查熱量</button>
+          </div>
+          <div id="inline-cal-result" style="display:none;margin-top:8px;border-radius:var(--radius-sm);background:var(--blue-bg);padding:10px 12px"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">時間</label>
+            <input type="time" id="f-time">
+          </div>
+          <div class="form-group">
+            <label class="form-label">類別</label>
+            <select id="f-cat">
+              <option value="chicken">鹹水雞</option>
+              <option value="store">超商</option>
+              <option value="braised">滷味</option>
+              <option value="snack">小吃攤</option>
+              <option value="sweet">甜食/零食</option>
+              <option value="drink">飲料</option>
+              <option value="fruit">水果/輕食</option>
+              <option value="other">其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">熱量 (kcal)</label>
+            <input type="number" id="f-cal" placeholder="輸入或AI查">
+          </div>
+          <div class="form-group">
+            <label class="form-label">花費 (NT$)（選填）</label>
+            <input type="number" id="f-price" placeholder="例：65">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">備註（數量、口味…）</label>
+          <input type="text" id="f-note" placeholder="例：3顆、一小包、去糖">
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-green" onclick="addFood()">新增記錄</button>
+          <button class="btn btn-ghost btn-sm" onclick="saveToFav()">存入最愛</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="card-title" style="margin-bottom:0">今日記錄</div>
+          <div id="log-spend-summary" style="font-size:12px;color:var(--text2)"></div>
+        </div>
+        <div id="log-list"><p class="empty-hint">尚無記錄</p></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="page-history" class="page">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-top:4px">
+        <div class="page-title" style="margin-bottom:0">歷史記錄</div>
+        <div style="display:flex;gap:4px;background:var(--bg2);border-radius:var(--radius-sm);padding:3px">
+          <button class="hist-tab active" data-tab="week" onclick="switchHistTab('week',this)">本週</button>
+          <button class="hist-tab" data-tab="month" onclick="switchHistTab('month',this)">本月</button>
+          <button class="hist-tab" data-tab="all" onclick="switchHistTab('all',this)">全部</button>
+        </div>
+      </div>
+
+      <div class="stat-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat"><div class="stat-val c-green" id="s-avgfast">—</div><div class="stat-lbl">平均斷食</div></div>
+        <div class="stat"><div class="stat-val c-amber" id="s-avgcal">—</div><div class="stat-lbl">平均熱量</div></div>
+        <div class="stat"><div class="stat-val" style="color:#D4537E" id="s-totalspend">—</div><div class="stat-lbl">餐費合計</div></div>
+        <div class="stat"><div class="stat-val c-blue" id="s-days">0</div><div class="stat-lbl">記錄天數</div></div>
+      </div>
+
+      <div class="card" id="weight-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="card-title" style="margin-bottom:0">體重記錄</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="number" id="weight-input" placeholder="kg" style="width:70px;margin:0;height:34px;font-size:14px">
+            <button onclick="addWeight()" style="padding:0 12px;height:34px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap">記錄</button>
+          </div>
+        </div>
+        <div id="weight-list"><p class="empty-hint">還沒有體重記錄，量了就記！</p></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="history-period-title">本週記錄</div>
+        <div id="history-list"><p class="empty-hint">開始記錄後會顯示在這裡</p></div>
+      </div>
+    </div>
+
+    <!-- AI -->
+    <div id="page-ai" class="page" style="padding:0;display:flex;flex-direction:column;height:100%">
+      <div style="padding:12px 14px 4px;flex-shrink:0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="page-title" style="margin-bottom:0">飲食教練</div>
+          <button onclick="clearChat()" style="font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;padding:4px 8px;font-family:inherit">清除對話</button>
+        </div>
+        <div class="quick-ask-grid" style="margin-top:10px;margin-bottom:0">
+          <button class="quick-ask-btn" onclick="coachQ('幫我分析今天的飲食，有沒有違反我的規則？')">今日分析</button>
+          <button class="quick-ask-btn" onclick="coachQ('我今天熱量夠嗎？')">熱量夠嗎</button>
+          <button class="quick-ask-btn" onclick="coachQ('今天還可以吃什麼？')">還能吃什麼</button>
+          <button class="quick-ask-btn" onclick="coachQ('幫我規劃明天菜單')">明天菜單</button>
+        </div>
+        <div style="margin-top:10px;border-top:0.5px solid var(--border);padding-top:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13px;font-weight:500;color:var(--text)">週報 AI 分析</span>
+            <div style="display:flex;gap:6px">
+              <button onclick="genWeekReport('week')" style="padding:5px 12px;background:var(--blue);color:#fff;border:none;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit">產生本週週報</button>
+              <button onclick="genWeekReport('month')" style="padding:5px 12px;background:var(--bg3);color:var(--text);border:none;border-radius:20px;font-size:12px;cursor:pointer;font-family:inherit">本月總結</button>
+            </div>
+          </div>
+          <div id="weekly-report-area" style="display:none"></div>
+        </div>
+      </div>
+      <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:10px"></div>
+      <div style="padding:10px 14px;border-top:0.5px solid var(--border);flex-shrink:0;background:var(--bg)">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="chat-input" placeholder="輸入訊息，或說「我剛吃了...」" style="flex:1" onkeydown="if(event.key==='Enter')sendChat()">
+          <button onclick="sendChat()" style="padding:0 16px;height:42px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:500;cursor:pointer;font-family:inherit;flex-shrink:0">送出</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page">
+      <div class="page-title">設定</div>
+
+      <!-- Body profile card -->
+      <div class="card">
+        <div class="card-title">身體資料與熱量計算</div>
+        <div id="profile-badge-wrap"></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">性別</label>
+            <select id="s-gender" onchange="calcTDEE()">
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">年齡</label>
+            <input type="number" id="s-age" placeholder="例：30" min="10" max="99" onchange="calcTDEE()">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">身高 (cm)</label>
+            <input type="number" id="s-height" placeholder="例：170" min="100" max="250" onchange="calcTDEE()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">目前體重 (kg)</label>
+            <input type="number" id="s-bw" placeholder="例：75" min="30" max="200" onchange="calcTDEE()">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">活動量</label>
+          <select id="s-activity" onchange="calcTDEE()">
+            <option value="1.2">久坐（辦公室、幾乎不運動）</option>
+            <option value="1.375" selected>輕量（每週運動 1-3 天）</option>
+            <option value="1.55">中等（每週運動 3-5 天）</option>
+            <option value="1.725">積極（每週運動 6-7 天）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">減重速度</label>
+          <div class="mode-row" id="deficit-row">
+            <button class="mode-btn" data-d="250" onclick="setDeficit(250,this)">慢速<br><span style="font-size:10px">-0.25kg/週</span></button>
+            <button class="mode-btn sel" data-d="500" onclick="setDeficit(500,this)">標準<br><span style="font-size:10px">-0.5kg/週</span></button>
+            <button class="mode-btn" data-d="750" onclick="setDeficit(750,this)">積極<br><span style="font-size:10px">-0.75kg/週</span></button>
+          </div>
+        </div>
+        <div id="tdee-result-wrap"></div>
+        <button class="apply-btn" onclick="applyCalGoal()">套用建議熱量到目標</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">斷食設定</div>
+        <div class="form-group">
+          <label class="form-label">基礎斷食模式（預設 16:8）</label>
+          <div class="mode-row" id="mode-row">
+            <button class="mode-btn" data-h="14" onclick="setMode(14,this)">14:10</button>
+            <button class="mode-btn sel" data-h="16" onclick="setMode(16,this)">16:8</button>
+            <button class="mode-btn" data-h="18" onclick="setMode(18,this)">18:6</button>
+            <button class="mode-btn" data-h="20" onclick="setMode(20,this)">20:4</button>
+          </div>
+          <p style="font-size:11px;color:var(--text3);margin-top:6px">進食窗口 = 24 − 斷食時數。例如 16:8 表示進食窗口 8 小時，斷食 16 小時。</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">進食窗口（小時）</label>
+          <input type="number" id="s-eat-window" value="8" min="2" max="16" onchange="saveSets()">
+          <p style="font-size:11px;color:var(--text3);margin-top:4px">從第一筆記錄起算，幾小時內都算進食中；超過後自動進入斷食計時</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">每日熱量目標 (kcal)</label>
+          <input type="number" id="s-cal" value="1500" onchange="saveSets()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">目標體重 (kg)（選填）</label>
+          <input type="number" id="s-weight" placeholder="例：65" onchange="saveSets()">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">飲食教練設定</div>
+        <div class="form-group">
+          <label class="form-label">教練說話風格</label>
+          <div class="mode-row" id="coach-style-row">
+            <button class="mode-btn sel" data-cs="gentle" onclick="setCoachStyle('gentle',this)">溫和鼓勵</button>
+            <button class="mode-btn" data-cs="strict" onclick="setCoachStyle('strict',this)">嚴格督促</button>
+            <button class="mode-btn" data-cs="funny" onclick="setCoachStyle('funny',this)">幽默吐槽</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">禁止／限制食物</label>
+          <div id="ban-tags-wrap" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="ban-input" placeholder="例：手搖飲、炸物、糖果" style="flex:1" onkeydown="if(event.key==='Enter')addBanFood()">
+            <button onclick="addBanFood()" style="padding:0 14px;height:42px;background:var(--red-bg);color:var(--red-text);border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0">加入禁令</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">熱量警告門檻</label>
+          <div class="mode-row" id="cal-warn-row">
+            <button class="mode-btn" data-cw="80" onclick="setCalWarn(80,this)">80%</button>
+            <button class="mode-btn sel" data-cw="90" onclick="setCalWarn(90,this)">90%</button>
+            <button class="mode-btn" data-cw="100" onclick="setCalWarn(100,this)">100%</button>
+          </div>
+          <p style="font-size:11px;color:var(--text3);margin-top:4px">達到每日目標的幾% 時，教練會主動提醒</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">個人備註（讓教練更了解你）</label>
+          <textarea id="s-coach-note" placeholder="例：我不吃甜食、晚餐後不吃東西、在減脂期要避免高糖食物…" style="height:70px" onchange="saveSets()"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">喝水提醒</div>
+        <div class="form-group">
+          <label class="form-label">每日喝水目標 (ml)</label>
+          <select id="s-water-goal" onchange="saveSets()">
+            <option value="1500">1500 ml（輕量）</option>
+            <option value="2000" selected>2000 ml（標準）</option>
+            <option value="2500">2500 ml（積極）</option>
+            <option value="3000">3000 ml（高強度）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">提醒間隔</label>
+          <select id="s-water-interval" onchange="saveSets()">
+            <option value="0">關閉提醒</option>
+            <option value="30">每 30 分鐘</option>
+            <option value="60" selected>每 1 小時</option>
+            <option value="90">每 1.5 小時</option>
+            <option value="120">每 2 小時</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">提醒時段</label>
+          <div class="form-row">
+            <div><label class="form-label" style="font-size:11px">開始</label><input type="time" id="s-water-from" value="07:00" onchange="saveSets()"></div>
+            <div><label class="form-label" style="font-size:11px">結束</label><input type="time" id="s-water-to" value="22:00" onchange="saveSets()"></div>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--text2);line-height:1.6;margin-top:4px">提醒會以 App 內橫幅顯示。若需系統通知，請在瀏覽器設定中允許通知權限。</p>
+        <div class="btn-row" style="margin-top:8px">
+          <button class="btn btn-ghost btn-sm" onclick="requestNotifPerm()">啟用系統通知</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">關於</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6">飲食日記 v1.2<br>資料儲存在本機，不上傳雲端。<br>在 Safari 點「分享 → 加入主畫面」可像 App 一樣使用。</p>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn btn-ghost btn-sm" onclick="exportData()">匯出 JSON</button>
+          <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-text)" onclick="clearAll()">清除所有記錄</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav id="nav">
+    <button class="nav-btn active" onclick="goPage('home')" id="nav-home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+      今日
+    </button>
+    <button class="nav-btn" onclick="goPage('log')" id="nav-log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+      記錄
+    </button>
+    <button class="nav-btn" onclick="goPage('history')" id="nav-history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+      歷史
+    </button>
+    <button class="nav-btn" onclick="goPage('ai')" id="nav-ai">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a9 9 0 110 18A9 9 0 0112 2z"/><path d="M12 8v4m0 4h.01"/></svg>
+      AI建議
+    </button>
+    <button class="nav-btn" onclick="goPage('settings')" id="nav-settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      設定
+    </button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const QUICK=[
+  {n:'鹹水雞(小)',c:180,t:'chicken'},{n:'鹹水雞(大)',c:350,t:'chicken'},
+  {n:'御飯糰',c:200,t:'store'},{n:'茶葉蛋',c:80,t:'store'},{n:'超商沙拉',c:150,t:'store'},
+  {n:'滷豆腐',c:120,t:'braised'},{n:'滷蛋',c:70,t:'braised'},{n:'滷雞腿',c:200,t:'braised'},
+  {n:'肉圓',c:280,t:'snack'},{n:'水煮玉米',c:150,t:'snack'},{n:'蚵仔煎',c:250,t:'snack'},
+  {n:'無糖豆漿',c:60,t:'drink'}
+];
+const CAT_CLR={chicken:'#1D9E75',store:'#378ADD',braised:'#BA7517',snack:'#D85A30',sweet:'#D4537E',drink:'#993556',fruit:'#639922',other:'#888780'};
+const DAYS=['日','一','二','三','四','五','六'];
+
+let S={sets:{fh:16,eatWindow:8,es:'12:00',ee:'20:00',cg:1500,wg:'',wgoal:2000,winterval:60,wfrom:'07:00',wto:'22:00',gender:'male',age:'',height:'',bw:'',activity:1.375,deficit:500,coachStyle:'gentle',banFoods:[],calWarn:90,coachNote:''},logs:{},lastEat:null,favs:[],weights:[]};
+let histTab='week';
+let chatHistory=[];
+let waterTimer=null;
+
+function ls(){const d=localStorage.getItem('diet_v3');if(d)S=JSON.parse(d);if(!S.favs)S.favs=[];if(!S.weights)S.weights=[];if(!S.sets.eatWindow)S.sets.eatWindow=8;}
+function ss(){localStorage.setItem('diet_v3',JSON.stringify(S));}
+function tk(){return new Date().toISOString().slice(0,10);}
+function todayLog(){const k=tk();if(!S.logs[k])S.logs[k]={foods:[],water:0};if(S.logs[k].water===undefined)S.logs[k].water=0;return S.logs[k];}
+function totalCal(log){return log.foods.reduce((a,f)=>a+(f.cal||0),0);}
+
+function goPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.getElementById('nav-'+p).classList.add('active');
+  if(p==='home')renderHome();
+  if(p==='log')renderLog();
+  if(p==='history')renderHistory();
+  if(p==='settings')renderSettings();
+  if(p==='ai')renderChat();
+}
+
+function nowMin(){const n=new Date();return n.getHours()*60+n.getMinutes();}
+function parseTime(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+function fastHours(){
+  if(!S.lastEat)return 0;
+  return Math.max(0,(Date.now()-new Date(S.lastEat).getTime())/3600000);
+}
+
+function renderHome(){
+  const n=new Date();
+  document.getElementById('today-date').textContent=`${n.getMonth()+1}/${n.getDate()}`;
+  const log=todayLog();
+  const cal=totalCal(log);
+  const fh=fastHours();
+  const finfo=getFastInfo();
+  document.getElementById('h-fast').textContent=finfo.fastH.toFixed(1)+'h';
+  document.getElementById('h-cal').textContent=cal;
+  document.getElementById('h-meals').textContent=todayLog().foods.length+'餐';
+  document.getElementById('cal-goal-disp').textContent=S.sets.cg;
+  document.getElementById('total-cal-disp').textContent=cal+' kcal';
+  const pct=Math.min(100,Math.round(cal/S.sets.cg*100));
+  const bar=document.getElementById('cal-bar');
+  bar.style.width=pct+'%';
+  bar.style.background=pct>100?'#E24B4A':pct>85?'#EF9F27':'#FAC775';
+  renderFastBar();
+  renderHomeFoods();
+  renderWeek();
+  renderWater();
+  renderHomeBMI();
+}
+
+function renderHomeBMI(){
+  const wrap=document.getElementById('home-bmi-wrap');
+  const h=parseFloat(S.sets.height),w=parseFloat(S.sets.bw),age=parseFloat(S.sets.age);
+  if(!h||!w){wrap.innerHTML='<div style="background:var(--bg2);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text3);margin-bottom:12px;text-align:center">前往「設定」輸入身高體重，自動計算建議熱量</div>';return;}
+  const bmi=w/((h/100)**2);
+  let lbl,clr,bgClr;
+  if(bmi<18.5){lbl='過輕';clr='#185FA5';bgClr='var(--blue-bg)';}
+  else if(bmi<24){lbl='正常';clr='#1D9E75';bgClr='var(--green-bg)';}
+  else if(bmi<27){lbl='過重';clr='#BA7517';bgClr='var(--amber-bg)';}
+  else{lbl='肥胖';clr='#A32D2D';bgClr='var(--red-bg)';}
+  const act=parseFloat(S.sets.activity||1.375);
+  const gender=S.sets.gender||'male';
+  const deficit=S.sets.deficit||500;
+  let bmr=gender==='male'?88.362+(13.397*w)+(4.799*h)-(5.677*(age||30)):447.593+(9.247*w)+(3.098*h)-(4.330*(age||30));
+  const suggest=Math.round(bmr*act)-deficit;
+  const idealMin=Math.round(18.5*(h/100)**2);
+  const idealMax=Math.round(24*(h/100)**2);
+  wrap.innerHTML=`
+    <div class="home-bmi-card" style="background:${bgClr}">
+      <div>
+        <div class="home-bmi-num" style="color:${clr}">${bmi.toFixed(1)}</div>
+        <div class="home-bmi-label" style="color:${clr}">BMI · ${lbl}</div>
+      </div>
+      <div class="home-bmi-info">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">建議攝取 <span style="color:${clr}">${suggest}</span> kcal/天</div>
+        <div class="home-bmi-suggest">理想體重 ${idealMin}–${idealMax} kg｜現在 ${w} kg</div>
+        <div class="home-bmi-suggest">${w>idealMax?'距理想體重還需減 '+(w-idealMax).toFixed(1)+' kg':w<idealMin?'體重偏低，請注意均衡飲食':'已在理想範圍內！'}</div>
+      </div>
+    </div>`;
+}
+
+function getFastInfo(){
+  const log=todayLog();
+  const eatWindowH=parseFloat(S.sets.eatWindow||8);
+  const fastGoalH=parseFloat(S.sets.fh||16);
+  const foods=log.foods;
+  const now=Date.now();
+
+  if(!foods.length && !S.lastEat){
+    return {phase:'empty',fastH:0,eatWindowH,fastGoalH,firstEat:null,lastEat:null,eatEnd:null,fastStart:null};
+  }
+
+  // Get timestamps from food records
+  const today=tk();
+  let firstEatTs=null, lastEatTs=null;
+
+  if(foods.length){
+    const sorted=[...foods].filter(f=>f.time).map(f=>{
+      const[h,m]=f.time.split(':').map(Number);
+      const d=new Date(); d.setHours(h,m,0,0);
+      return d.getTime();
+    }).sort((a,b)=>a-b);
+    if(sorted.length){firstEatTs=sorted[0]; lastEatTs=sorted[sorted.length-1];}
+  }
+  // Also consider S.lastEat (manual mark)
+  if(S.lastEat){
+    const ts=new Date(S.lastEat).getTime();
+    if(!firstEatTs||ts<firstEatTs) firstEatTs=ts;
+    if(!lastEatTs||ts>lastEatTs) lastEatTs=ts;
+  }
+
+  if(!firstEatTs) return {phase:'empty',fastH:0,eatWindowH,fastGoalH,firstEat:null,lastEat:null,eatEnd:null,fastStart:null};
+
+  const eatEndTs=firstEatTs+(eatWindowH*3600000);
+  const fastStartTs=lastEatTs; // fasting starts from LAST food record
+  const fastH=Math.max(0,(now-fastStartTs)/3600000);
+
+  const fmt=ts=>{const d=new Date(ts);return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');};
+
+  // Phase: eating = still within eat window; fasting = past last food
+  let phase;
+  if(now<=eatEndTs && now<=lastEatTs+3600000) phase='eating'; // within 1hr of last eat = still eating
+  else if(fastH<fastGoalH) phase='fasting';
+  else phase='done';
+
+  // Auto-detect achieved mode
+  let achievedMode=null;
+  const modes=[{h:12,label:'12:12'},{h:14,label:'14:10'},{h:16,label:'16:8'},{h:18,label:'18:6'},{h:20,label:'20:4'},{h:23,label:'OMAD'}];
+  for(const mo of modes){
+    if(fastH>=mo.h) achievedMode=mo.label;
+  }
+
+  // Eat window display: first food to eatEnd
+  const eatWindowDisp=fmt(firstEatTs)+' – '+fmt(eatEndTs);
+
+  return {phase,fastH,eatWindowH,fastGoalH,firstEatTs,lastEatTs,eatEndTs,fastStartTs,
+    firstEatFmt:fmt(firstEatTs),lastEatFmt:fmt(lastEatTs),eatEndFmt:fmt(eatEndTs),
+    eatWindowDisp,achievedMode};
+}
+
+function renderFastBar(){
+  const info=getFastInfo();
+  const {phase,fastH,fastGoalH,eatWindowDisp,lastEatFmt,achievedMode}=info;
+  const circ=226.2;
+  const pct=Math.min(100,fastH/fastGoalH*100);
+  const offset=(circ*(1-pct/100)).toFixed(1);
+
+  const clr=phase==='done'?'#1D9E75':phase==='fasting'&&pct>=75?'#EF9F27':'#378ADD';
+
+  const ring=document.getElementById('fast-ring');
+  if(ring){ring.style.strokeDashoffset=offset;ring.style.stroke=clr;}
+  const hBig=document.getElementById('fast-h-big');
+  if(hBig){hBig.textContent=fastH.toFixed(1);hBig.style.color=clr;}
+
+  // Mode badge
+  const modeBadge=document.getElementById('fast-mode-badge');
+  if(modeBadge){
+    if(achievedMode){
+      modeBadge.textContent='已達成 '+achievedMode+' ✓';
+      modeBadge.style.background='var(--green-bg)';modeBadge.style.color='var(--green-text)';
+    } else if(phase==='fasting'){
+      modeBadge.textContent='斷食中';
+      modeBadge.style.background='var(--blue-bg)';modeBadge.style.color='var(--blue-text)';
+    } else if(phase==='eating'){
+      modeBadge.textContent='進食中';
+      modeBadge.style.background='var(--amber-bg)';modeBadge.style.color='var(--amber-text)';
+    } else {
+      modeBadge.textContent='尚未開始';
+      modeBadge.style.background='var(--bg3)';modeBadge.style.color='var(--text2)';
+    }
+  }
+
+  // Status text
+  const statusEl=document.getElementById('fast-status-text');
+  if(statusEl){
+    if(phase==='empty') statusEl.textContent='記錄第一筆飲食後自動開始計時';
+    else if(phase==='eating') statusEl.textContent='進食窗口開放中，吃完後斷食自動開始';
+    else if(phase==='done') statusEl.textContent='🎉 今日 '+fastGoalH+':'+( 24-fastGoalH)+' 斷食達成！';
+    else if(pct>=75) statusEl.textContent='快到了！再撐 '+formatLeft(fastGoalH-fastH);
+    else statusEl.textContent='斷食中，距目標 '+formatLeft(fastGoalH-fastH);
+  }
+
+  // Detail rows
+  const ew=document.getElementById('eat-window-disp');
+  if(ew) ew.textContent=info.eatWindowDisp||'—';
+  const el2=document.getElementById('fast-elapsed-disp');
+  if(el2) el2.textContent=phase==='empty'?'—':fastH.toFixed(1)+' 小時';
+  const rem=document.getElementById('fast-remain');
+  if(rem){
+    if(phase==='empty'||phase==='eating') rem.textContent='—';
+    else if(phase==='done') rem.textContent='已完成 ✓';
+    else rem.textContent=formatLeft(fastGoalH-fastH);
+  }
+
+  const le=document.getElementById('last-eat-disp');
+  if(le) le.textContent=lastEatFmt||'未記錄';
+
+  // Timeline bar (24hr): yellow=eat window, blue=fasting progress
+  const now=Date.now();
+  const midnight=new Date();midnight.setHours(0,0,0,0);
+  const dayMs=86400000;
+  const eatBar=document.getElementById('fast-bar-eat');
+  const fastBar=document.getElementById('fast-bar-fill');
+  if(eatBar&&fastBar&&info.firstEatTs){
+    const ewLeft=((info.firstEatTs-midnight)/dayMs*100).toFixed(1);
+    const ewW=Math.min(100-ewLeft,(info.eatWindowH/24*100)).toFixed(1);
+    eatBar.style.left=ewLeft+'%';eatBar.style.width=ewW+'%';
+    if(info.fastStartTs){
+      const fLeft=((info.fastStartTs-midnight)/dayMs*100).toFixed(1);
+      const fNow=Math.min(now,midnight.getTime()+dayMs);
+      const fW=Math.min(100-fLeft,((fNow-info.fastStartTs)/dayMs*100)).toFixed(1);
+      fastBar.style.left=fLeft+'%';fastBar.style.width=fW+'%';
+      fastBar.style.background=clr;
+    }
+  }
+}
+
+function formatLeft(h){
+  const hh=Math.floor(h);const mm=Math.round((h-hh)*60);
+  return (hh>0?hh+'h ':'')+mm+'min';
+}
+
+function renderHomeFoods(){
+  const log=todayLog();
+  const el=document.getElementById('home-food-list');
+  if(!log.foods.length){el.innerHTML='<p class="empty-hint">今天還沒有記錄</p>';return;}
+  const todaySpend=log.foods.reduce((s,f)=>s+(f.price||0),0);
+  const spendEl=document.getElementById('today-spend-wrap');
+  if(spendEl)spendEl.innerHTML=todaySpend>0?`<div style="font-size:12px;color:var(--text2);margin-top:4px;text-align:right">今日餐費 <strong style="color:var(--amber)">NT$${todaySpend}</strong></div>`:'';
+  el.innerHTML=log.foods.map(f=>`
+    <div class="food-item">
+      <div class="food-dot" style="background:${CAT_CLR[f.cat]||'#888'}"></div>
+      <div class="food-info"><div class="food-name">${f.n}</div><div class="food-meta">${f.time||''}${f.note?' · '+f.note:''}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <div class="food-cal">${f.cal||'?'} kcal</div>
+        ${f.price?`<div style="font-size:11px;color:var(--text2)">NT$${f.price}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function renderWeek(){
+  const n=new Date();const wr=document.getElementById('week-row');wr.innerHTML='';
+  for(let i=6;i>=0;i--){
+    const d=new Date(n);d.setDate(d.getDate()-i);
+    const k=d.toISOString().slice(0,10);
+    const log=S.logs[k];
+    const cal=log?totalCal(log):0;
+    const has=log&&log.foods.length>0;
+    const over=cal>S.sets.cg;
+    const isToday=i===0;
+    const div=document.createElement('div');
+    div.className='week-day';
+    div.innerHTML=`<div class="week-circle${has?(over?' over':' logged'):''}${isToday?' today':''}">${d.getDate()}</div><div class="week-label">${DAYS[d.getDay()]}</div>`;
+    wr.appendChild(div);
+  }
+}
+
+function renderLog(){
+  const qg=document.getElementById('quick-grid');
+  qg.innerHTML=QUICK.map(f=>`<button class="quick-btn" onclick="quickAdd('${f.n}',${f.c},'${f.t}')">${f.n}<span class="quick-cal">${f.c} kcal</span></button>`).join('');
+  const n=new Date();
+  document.getElementById('f-time').value=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+  renderLogList();
+  renderFavGrid();
+}
+
+function renderFavGrid(){
+  const el=document.getElementById('fav-grid');
+  if(!el) return;
+  const favs=S.favs||[];
+  if(!favs.length){el.innerHTML='<p class="empty-hint" style="padding:4px 0">新增後會出現在這裡</p>';return;}
+  el.innerHTML=favs.map((f,i)=>`
+    <button class="fav-btn" onclick="quickAddFav(${i})" oncontextmenu="deleteFav(event,${i})">
+      ${f.n}<span style="color:var(--amber);margin-left:4px;font-size:11px">${f.cal}kcal</span>
+    </button>`).join('');
+}
+
+function saveToFav(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){toast('請先輸入食物名稱');return;}
+  const cal=parseInt(document.getElementById('f-cal').value)||0;
+  const cat=document.getElementById('f-cat').value;
+  const note=document.getElementById('f-note').value.trim();
+  const price=parseInt(document.getElementById('f-price').value)||0;
+  if(!S.favs) S.favs=[];
+  if(S.favs.find(f=>f.n===name)){toast('已在最愛清單中');return;}
+  S.favs.push({n:name,cal,cat,note,price});
+  ss();renderFavGrid();
+  toast(name+' 已加入最愛！');
+}
+
+function quickAddFav(i){
+  const f=S.favs[i];
+  if(!f) return;
+  const n=new Date();
+  const t=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+  todayLog().foods.push({n:f.n,cal:f.cal,cat:f.cat,time:t,note:f.note||'',price:f.price||0});
+  S.lastEat=new Date().toISOString();ss();
+  renderLogList();toast(f.n+' 已記錄！');
+  coachCheckAfterFood(f.n,f.cal);
+}
+
+function deleteFav(e,i){
+  e.preventDefault();
+  if(confirm('從最愛移除「'+S.favs[i].n+'」？')){
+    S.favs.splice(i,1);ss();renderFavGrid();
+  }
+}
+
+function buildWeekSummary(tab){
+  const keys=getHistKeys(tab);
+  if(!keys.length) return null;
+  const rows=keys.map(k=>{
+    const log=S.logs[k];
+    const cal=totalCal(log);
+    const spend=totalSpend(log);
+    const mode=calcAchievedMode(log);
+    const foods=log.foods.map(f=>f.n).join('、');
+    return `${k}：${cal}kcal，餐費NT$${spend}，飲食：${foods||'無記錄'}，斷食：${mode||'未達標'}`;
+  }).join('\n');
+  const totalCals=keys.reduce((s,k)=>s+totalCal(S.logs[k]),0);
+  const totalSpends=keys.reduce((s,k)=>s+totalSpend(S.logs[k]),0);
+  const avgCal=Math.round(totalCals/keys.length);
+  const weights=(S.weights||[]).filter(w=>keys.includes(w.date));
+  const wInfo=weights.length?'體重記錄：'+weights.map(w=>w.date+' '+w.kg+'kg').join('、'):'無體重記錄';
+  return `【${tab==='week'?'本週':'本月'}統計 (${keys[keys.length-1]} ~ ${keys[0]})】
+記錄天數：${keys.length}天
+平均熱量：${avgCal} kcal
+總餐費：NT$${totalSpends}
+${wInfo}
+目標體重：${S.sets.wg||'未設定'}kg
+
+【每日明細】
+${rows}`;
+}
+
+async function genWeekReport(tab){
+  const area=document.getElementById('weekly-report-area');
+  area.style.display='block';
+  area.innerHTML='<div class="ai-loading dot-anim">AI 分析中</div>';
+  const summary=buildWeekSummary(tab);
+  if(!summary){area.innerHTML='<p class="empty-hint">這個區間還沒有足夠的記錄</p>';return;}
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:800,
+        system:'你是台灣用戶的飲食分析師。根據用戶的飲食數據產生繁體中文週報，格式：1)本週亮點 2)需要改善的地方 3)飲食花費分析 4)下週具體建議。語氣'+{gentle:'溫和鼓勵',strict:'直接嚴格',funny:'幽默有趣'}[S.sets.coachStyle||'gentle']+'，總長度約250字。',
+        messages:[{role:'user',content:summary+'\n\n請幫我產生'+(tab==='week'?'週報':'月報')+'分析。'}]
+      })
+    });
+    const d=await r.json();
+    const txt=d.content&&d.content[0]&&d.content[0].text||'無法產生報告';
+    area.innerHTML='<div class="weekly-report-box">'+txt.split('\n').join('<br>')+'</div>';
+  }catch(e){area.innerHTML='<p style="color:var(--red-text);font-size:13px">連線失敗，請稍後再試</p>';}
+}
+
+function renderLogList(){
+  const log=todayLog();
+  const el=document.getElementById('log-list');
+  if(!log.foods.length){el.innerHTML='<p class="empty-hint">尚無記錄</p>';return;}
+  const totalSpend=log.foods.reduce((s,f)=>s+(f.price||0),0);
+  const logSpendEl=document.getElementById('log-spend-summary');
+  if(logSpendEl)logSpendEl.innerHTML=totalSpend>0?`今日餐費合計：<strong style="color:var(--amber)">NT$ ${totalSpend}</strong>`:'';
+  el.innerHTML=log.foods.map((f,i)=>`
+    <div class="food-item">
+      <div class="food-dot" style="background:${CAT_CLR[f.cat]||'#888'}"></div>
+      <div class="food-info"><div class="food-name">${f.n}</div><div class="food-meta">${f.time||''}${f.note?' · '+f.note:''}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-right:6px">
+        <div class="food-cal">${f.cal||'?'} kcal</div>
+        ${f.price?`<div style="font-size:11px;color:var(--text2)">NT$${f.price}</div>`:''}
+      </div>
+      <button class="del-btn" onclick="delFood(${i})">×</button>
+    </div>`).join('');
+}
+
+function quickAdd(name,cal,cat){
+  const n=new Date();
+  const t=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+  todayLog().foods.push({n:name,cal,cat,time:t,note:''});
+  S.lastEat=new Date().toISOString();ss();
+  renderLogList();toast(name+' 已記錄！');
+  coachCheckAfterFood(name,cal);
+}
+
+function addFood(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){toast('請輸入食物名稱');return;}
+  const cal=parseInt(document.getElementById('f-cal').value)||0;
+  const cat=document.getElementById('f-cat').value;
+  const time=document.getElementById('f-time').value;
+  const note=document.getElementById('f-note').value.trim();
+  const price=parseInt(document.getElementById('f-price').value)||0;
+  todayLog().foods.push({n:name,cal,cat,time,note,price});
+  S.lastEat=new Date().toISOString();ss();
+  document.getElementById('f-name').value='';
+  document.getElementById('f-cal').value='';
+  document.getElementById('f-price').value='';
+  document.getElementById('f-note').value='';
+  document.getElementById('inline-cal-result').style.display='none';
+  renderLogList();toast('已新增 '+name+(price?' · NT$'+price:''));
+  coachCheckAfterFood(name,cal);
+}
+
+function delFood(i){
+  todayLog().foods.splice(i,1);ss();renderLogList();
+}
+
+function markEatNow(){
+  S.lastEat=new Date().toISOString();ss();renderFastBar();toast('已記錄進食時間');
+}
+
+function renderWater(){
+  const log=todayLog();
+  const ml=log.water||0;
+  const goal=S.sets.wgoal||2000;
+  const cups=Math.ceil(goal/250);
+  const filled=Math.floor(ml/250);
+  document.getElementById('water-ml').textContent=ml;
+  document.getElementById('water-goal-disp').textContent=goal;
+  const pct=Math.min(100,Math.round(ml/goal*100));
+  document.getElementById('water-fill').style.width=pct+'%';
+  const cupEl=document.getElementById('water-cups');
+  const cupSvg=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3h8l-1 13H9L8 3z"/><path d="M6 3h12"/></svg>`;
+  cupEl.innerHTML=Array.from({length:cups},(_,i)=>`<div class="cup${i<filled?' filled':''}" onclick="setCups(${i+1})">${cupSvg}</div>`).join('');
+  const hint=document.getElementById('water-next-hint');
+  if(ml>=goal){hint.textContent='今日目標達成！保持下去';}
+  else{const rem=goal-ml;hint.textContent=`還需 ${rem}ml（約 ${Math.ceil(rem/250)} 杯）`;}
+}
+
+function addWater(ml){
+  const log=todayLog();
+  log.water=Math.min((log.water||0)+ml, S.sets.wgoal*1.5);
+  ss();renderWater();
+  toast(`+${ml}ml 已記錄`);
+  resetWaterTimer();
+}
+
+function setCups(n){
+  const log=todayLog();
+  const newMl=n*250;
+  log.water=newMl;
+  ss();renderWater();
+  toast(`已記錄 ${newMl}ml`);
+  resetWaterTimer();
+}
+
+function dismissWaterNotif(){
+  document.getElementById('water-notif-banner').style.display='none';
+  resetWaterTimer();
+}
+
+function showWaterNotif(){
+  const log=todayLog();
+  const goal=S.sets.wgoal||2000;
+  if((log.water||0)>=goal)return;
+  const rem=goal-(log.water||0);
+  const now=new Date();
+  const nm=now.getHours()*60+now.getMinutes();
+  const fm=parseTime(S.sets.wfrom||'07:00');
+  const tm=parseTime(S.sets.wto||'22:00');
+  if(nm<fm||nm>tm)return;
+  const el=document.getElementById('water-notif-banner');
+  document.getElementById('water-notif-text').textContent=`該喝水了！今天還差 ${rem}ml`;
+  el.style.display='flex';
+  if(document.getElementById('page-home').classList.contains('active'))renderWater();
+  if(Notification.permission==='granted'){
+    new Notification('喝水提醒 💧',{body:`今天還差 ${rem}ml，快補充水分！`,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><text y="28" font-size="28">💧</text></svg>'});
+  }
+}
+
+function resetWaterTimer(){
+  if(waterTimer)clearInterval(waterTimer);
+  const interval=parseInt(S.sets.winterval||60);
+  if(!interval)return;
+  waterTimer=setInterval(showWaterNotif, interval*60*1000);
+}
+
+async function requestNotifPerm(){
+  if(!('Notification' in window)){toast('此瀏覽器不支援通知');return;}
+  const p=await Notification.requestPermission();
+  if(p==='granted'){toast('通知已啟用！');resetWaterTimer();}
+  else toast('請在瀏覽器設定中允許通知');
+}
+
+function calcTDEE(){
+  const gender=document.getElementById('s-gender').value;
+  const age=parseFloat(document.getElementById('s-age').value);
+  const h=parseFloat(document.getElementById('s-height').value);
+  const w=parseFloat(document.getElementById('s-bw').value);
+  const act=parseFloat(document.getElementById('s-activity').value);
+  const deficit=S.sets.deficit||500;
+
+  S.sets.gender=gender;
+  S.sets.age=document.getElementById('s-age').value;
+  S.sets.height=document.getElementById('s-height').value;
+  S.sets.bw=document.getElementById('s-bw').value;
+  S.sets.activity=act;
+  ss();
+
+  const wrap=document.getElementById('tdee-result-wrap');
+  if(!age||!h||!w){wrap.innerHTML='';return;}
+
+  let bmr;
+  if(gender==='male') bmr=88.362+(13.397*w)+(4.799*h)-(5.677*age);
+  else bmr=447.593+(9.247*w)+(3.098*h)-(4.330*age);
+
+  const tdee=Math.round(bmr*act);
+  const goal=tdee-deficit;
+  const bmi=w/((h/100)**2);
+  let bmiLabel,bmiColor;
+  if(bmi<18.5){bmiLabel='體重過輕';bmiColor='#85B7EB';}
+  else if(bmi<24){bmiLabel='正常範圍';bmiColor='#1D9E75';}
+  else if(bmi<27){bmiLabel='過重';bmiColor='#EF9F27';}
+  else{bmiLabel='肥胖';bmiColor='#E24B4A';}
+
+  const bmiMin=15,bmiMax=35;
+  const bmiPct=Math.min(100,Math.max(0,Math.round((bmi-bmiMin)/(bmiMax-bmiMin)*100)));
+  const idealW=Math.round(22*(h/100)**2);
+  const diffW=(w-idealW).toFixed(1);
+  const weeksToGoal=S.sets.wg?Math.round(Math.abs(w-parseFloat(S.sets.wg))*7700/deficit):null;
+
+  wrap.innerHTML=`
+    <div class="tdee-result">
+      <div class="tdee-main">
+        <div class="tdee-main-num">${goal}</div>
+        <div class="tdee-main-lbl">建議每日攝取 kcal（減重目標）</div>
+      </div>
+      <div class="tdee-rows">
+        <div class="tdee-row"><span>基礎代謝率 BMR</span><span class="tdee-row-val">${Math.round(bmr)} kcal</span></div>
+        <div class="tdee-row"><span>總消耗熱量 TDEE</span><span class="tdee-row-val">${tdee} kcal</span></div>
+        <div class="tdee-row"><span>熱量缺口</span><span class="tdee-row-val">-${deficit} kcal/天</span></div>
+        ${weeksToGoal?`<div class="tdee-row"><span>預估達標時間</span><span class="tdee-row-val">約 ${weeksToGoal} 週</span></div>`:''}
+        <div class="tdee-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <div style="display:flex;justify-content:space-between;width:100%"><span>BMI</span><span class="tdee-row-val" style="color:${bmiColor}">${bmi.toFixed(1)} · ${bmiLabel}</span></div>
+          <div class="bmi-bar-wrap" style="width:100%">
+            <div class="bmi-track">
+              <div class="bmi-seg" style="width:17.5%;background:#85B7EB"></div>
+              <div class="bmi-seg" style="width:27.5%;background:#1D9E75"></div>
+              <div class="bmi-seg" style="width:15%;background:#EF9F27"></div>
+              <div class="bmi-seg" style="width:40%;background:#E24B4A"></div>
+            </div>
+            <div class="bmi-needle" style="left:${bmiPct}%"></div>
+            <div class="bmi-labels"><span>15</span><span>18.5</span><span>24</span><span>27</span><span>35</span></div>
+          </div>
+        </div>
+        <div class="tdee-row"><span>理想體重範圍</span><span class="tdee-row-val">${Math.round(18.5*(h/100)**2)}–${Math.round(24*(h/100)**2)} kg</span></div>
+        <div class="tdee-row"><span>與理想體重差距</span><span class="tdee-row-val" style="color:${parseFloat(diffW)>0?'var(--amber)':'var(--green)'}">${parseFloat(diffW)>0?'+':''}${diffW} kg</span></div>
+      </div>
+    </div>`;
+
+  updateProfileBadge(bmi,bmiLabel,goal);
+}
+
+function setDeficit(d,btn){
+  S.sets.deficit=d;
+  document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.d)===d));
+  ss();calcTDEE();
+}
+
+function applyCalGoal(){
+  const wrap=document.getElementById('tdee-result-wrap');
+  if(!wrap.innerHTML){toast('請先填寫身體資料');return;}
+  const age=parseFloat(document.getElementById('s-age').value);
+  const h=parseFloat(document.getElementById('s-height').value);
+  const w=parseFloat(document.getElementById('s-bw').value);
+  const act=parseFloat(document.getElementById('s-activity').value);
+  const gender=document.getElementById('s-gender').value;
+  if(!age||!h||!w){toast('請填寫年齡、身高、體重');return;}
+  let bmr;
+  if(gender==='male') bmr=88.362+(13.397*w)+(4.799*h)-(5.677*age);
+  else bmr=447.593+(9.247*w)+(3.098*h)-(4.330*age);
+  const goal=Math.round(bmr*act)-(S.sets.deficit||500);
+  S.sets.cg=goal;
+  document.getElementById('s-cal').value=goal;
+  ss();
+  toast(`已套用：每日目標 ${goal} kcal`);
+}
+
+function updateProfileBadge(bmi,label,goal){
+  const el=document.getElementById('profile-badge-wrap');
+  if(S.sets.height&&S.sets.bw){
+    el.innerHTML=`<div class="profile-badge">BMI ${bmi.toFixed(1)} · ${label} · 建議 ${goal} kcal</div>`;
+  }else{el.innerHTML='';}
+}
+
+function totalSpend(log){return log.foods.reduce((s,f)=>s+(f.price||0),0);}
+
+function getHistKeys(tab){
+  const now=new Date();
+  const allKeys=Object.keys(S.logs).sort().reverse();
+  if(tab==='week'){
+    const day=now.getDay();
+    const mon=new Date(now);mon.setDate(now.getDate()-day+(day===0?-6:1));mon.setHours(0,0,0,0);
+    return allKeys.filter(k=>new Date(k)>=mon);
+  }
+  if(tab==='month'){
+    const ym=now.toISOString().slice(0,7);
+    return allKeys.filter(k=>k.startsWith(ym));
+  }
+  return allKeys.slice(0,30);
+}
+
+function switchHistTab(tab,btn){
+  histTab=tab;
+  document.querySelectorAll('.hist-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  renderHistory();
+}
+
+function calcAchievedMode(log){
+  const foods=log.foods.filter(f=>f.time);
+  if(!foods.length) return null;
+  const times=foods.map(f=>f.time).sort();
+  const[fh,fm]=times[0].split(':').map(Number);
+  const[lh,lm]=times[times.length-1].split(':').map(Number);
+  const eatWindowEnd=fh*60+fm+(S.sets.eatWindow||8)*60;
+  const lastMinute=lh*60+lm;
+  const fastStart=Math.max(eatWindowEnd,lastMinute);
+  const fastH=(1440-fastStart)/60;
+  const modes=[{h:20,l:'20:4'},{h:18,l:'18:6'},{h:16,l:'16:8'},{h:14,l:'14:10'},{h:12,l:'12:12'}];
+  for(const mo of modes){if(fastH>=mo.h) return mo.l;}
+  return null;
+}
+
+function renderHistory(){
+  const keys=getHistKeys(histTab||'week');
+  const el=document.getElementById('history-list');
+  const titleEl=document.getElementById('history-period-title');
+  if(titleEl) titleEl.textContent={week:'本週記錄',month:'本月記錄',all:'全部記錄'}[histTab||'week'];
+
+  if(!keys.length){el.innerHTML='<p class="empty-hint">這個區間還沒有記錄</p>';}
+  else{
+    el.innerHTML=keys.map(k=>{
+      const log=S.logs[k];
+      const cal=totalCal(log);
+      const spend=totalSpend(log);
+      const over=cal>S.sets.cg;
+      const achievedMode=calcAchievedMode(log);
+      const items=log.foods.slice(0,3).map(f=>`<span class="tag tag-gray">${f.n}</span>`).join('');
+      const more=log.foods.length>3?`<span class="tag tag-gray">+${log.foods.length-3}</span>`:'';
+      return `<div class="history-item">
+        <div class="history-header">
+          <span class="history-date">${k}</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+            <span class="history-cal">${cal} kcal</span>
+            ${spend?`<span style="font-size:11px;color:var(--text2)">NT$${spend}</span>`:''}
+            ${achievedMode?`<span class="tag tag-green" style="font-size:10px">${achievedMode}</span>`:''}
+          </div>
+        </div>
+        <div class="history-tags">${items}${more}<span class="tag ${over?'tag-red':'tag-green'}">${over?'超標':'達標'}</span></div>
+      </div>`;
+    }).join('');
+  }
+
+  const cals=keys.map(k=>totalCal(S.logs[k]));
+  const avg=cals.length?Math.round(cals.reduce((a,b)=>a+b,0)/cals.length):0;
+  const spend=keys.reduce((s,k)=>s+totalSpend(S.logs[k]),0);
+  document.getElementById('s-avgcal').textContent=avg||'—';
+  document.getElementById('s-days').textContent=keys.length;
+  document.getElementById('s-avgfast').textContent=(S.sets.fh||16)+'h';
+  document.getElementById('s-totalspend').textContent=spend?'NT$'+spend:'—';
+  renderWeightList();
+}
+
+function addWeight(){
+  const inp=document.getElementById('weight-input');
+  const val=parseFloat(inp.value);
+  if(!val||val<20||val>300){toast('請輸入有效體重（20–300 kg）');return;}
+  if(!S.weights) S.weights=[];
+  const today=tk();
+  S.weights=S.weights.filter(w=>w.date!==today);
+  S.weights.push({date:today,kg:val});
+  S.weights.sort((a,b)=>a.date.localeCompare(b.date));
+  inp.value='';ss();renderWeightList();
+  toast('體重 '+val+' kg 已記錄');
+}
+
+function renderWeightList(){
+  const el=document.getElementById('weight-list');
+  if(!el) return;
+  const ws=(S.weights||[]).slice().reverse().slice(0,10);
+  if(!ws.length){el.innerHTML='<p class="empty-hint">還沒有體重記錄，量了就記！</p>';return;}
+  el.innerHTML=ws.map((w,i)=>{
+    const prev=ws[i+1];
+    const delta=prev?(w.kg-prev.kg).toFixed(1):null;
+    const deltaClr=delta?parseFloat(delta)<0?'var(--green)':parseFloat(delta)>0?'var(--red)':'var(--text2)':'';
+    return `<div class="weight-entry">
+      <div>
+        <div class="weight-val">${w.kg} <span style="font-size:12px;font-weight:400;color:var(--text2)">kg</span></div>
+        <div style="font-size:11px;color:var(--text3)">${w.date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        ${delta?`<span class="weight-delta" style="color:${deltaClr}">${parseFloat(delta)>0?'+':''}${delta} kg</span>`:''}
+        <button onclick="delWeight('${w.date}')" style="width:24px;height:24px;border-radius:50%;background:var(--bg3);border:none;cursor:pointer;font-size:14px;color:var(--text2);font-family:inherit">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function delWeight(date){
+  S.weights=(S.weights||[]).filter(w=>w.date!==date);
+  ss();renderWeightList();
+}
+
+function renderSettings(){
+  document.getElementById('s-eat-window').value=S.sets.eatWindow||8;
+  document.getElementById('s-cal').value=S.sets.cg;
+  document.getElementById('s-weight').value=S.sets.wg||'';
+  document.getElementById('s-water-goal').value=S.sets.wgoal||2000;
+  document.getElementById('s-water-interval').value=S.sets.winterval!==undefined?S.sets.winterval:60;
+  document.getElementById('s-water-from').value=S.sets.wfrom||'07:00';
+  document.getElementById('s-water-to').value=S.sets.wto||'22:00';
+  document.getElementById('s-gender').value=S.sets.gender||'male';
+  document.getElementById('s-age').value=S.sets.age||'';
+  document.getElementById('s-height').value=S.sets.height||'';
+  document.getElementById('s-bw').value=S.sets.bw||'';
+  document.getElementById('s-activity').value=S.sets.activity||1.375;
+  document.getElementById('s-coach-note').value=S.sets.coachNote||'';
+  document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.d)===(S.sets.deficit||500)));
+  document.querySelectorAll('[data-cs]').forEach(b=>b.classList.toggle('sel',b.dataset.cs===(S.sets.coachStyle||'gentle')));
+  document.querySelectorAll('[data-cw]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.cw)===(S.sets.calWarn||90)));
+  document.querySelectorAll('.mode-btn:not([data-d]):not([data-cs]):not([data-cw])').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.h)===S.sets.fh));
+  renderBanTags();
+  if(S.sets.height&&S.sets.bw&&S.sets.age) calcTDEE();
+}
+
+function renderBanTags(){
+  const wrap=document.getElementById('ban-tags-wrap');
+  if(!wrap)return;
+  const bans=S.sets.banFoods||[];
+  wrap.innerHTML=bans.length?bans.map((b,i)=>`<span class="ban-tag">${b}<button class="ban-tag-del" onclick="removeBan(${i})">×</button></span>`).join(''):'<span style="font-size:12px;color:var(--text3)">尚未設定，新增後教練會主動提醒</span>';
+}
+
+function addBanFood(){
+  const inp=document.getElementById('ban-input');
+  const val=inp.value.trim();
+  if(!val)return;
+  if(!S.sets.banFoods)S.sets.banFoods=[];
+  val.split(/[,，、]/).map(v=>v.trim()).filter(Boolean).forEach(v=>{
+    if(!S.sets.banFoods.includes(v))S.sets.banFoods.push(v);
+  });
+  inp.value='';ss();renderBanTags();toast('已加入禁止清單');
+}
+
+function removeBan(i){
+  S.sets.banFoods.splice(i,1);ss();renderBanTags();
+}
+
+function setCoachStyle(style,btn){
+  S.sets.coachStyle=style;
+  document.querySelectorAll('[data-cs]').forEach(b=>b.classList.toggle('sel',b.dataset.cs===style));
+  ss();toast('教練風格：'+{gentle:'溫和鼓勵',strict:'嚴格督促',funny:'幽默吐槽'}[style]);
+}
+
+function setCalWarn(pct,btn){
+  S.sets.calWarn=pct;
+  document.querySelectorAll('[data-cw]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.cw)===pct));
+  ss();
+}
+
+function setMode(h,btn){
+  S.sets.fh=h;
+  S.sets.eatWindow=24-h;
+  const ewEl=document.getElementById('s-eat-window');
+  if(ewEl) ewEl.value=24-h;
+  document.querySelectorAll('.mode-btn:not([data-d]):not([data-cs]):not([data-cw])').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.h)===h));
+  ss();toast('已設為 '+h+':'+(24-h)+' 模式');
+}
+
+function saveSets(){
+  S.sets.eatWindow=parseFloat(document.getElementById('s-eat-window').value)||8;
+  S.sets.fh=24-S.sets.eatWindow;
+  S.sets.cg=parseInt(document.getElementById('s-cal').value)||1500;
+  S.sets.wg=document.getElementById('s-weight').value;
+  S.sets.wgoal=parseInt(document.getElementById('s-water-goal').value)||2000;
+  S.sets.winterval=parseInt(document.getElementById('s-water-interval').value)||0;
+  S.sets.wfrom=document.getElementById('s-water-from').value;
+  S.sets.wto=document.getElementById('s-water-to').value;
+  S.sets.coachNote=document.getElementById('s-coach-note').value;
+  ss();
+  resetWaterTimer();
+}
+
+
+
+function coachStyleDesc(){
+  const m={gentle:'你是溫柔體貼的飲食教練，用鼓勵正面的方式說話，偶爾給加油打氣',strict:'你是嚴格的飲食教練，直接指出問題，語氣堅定但不失關心',funny:'你是幽默的飲食教練，會用台灣人習慣的幽默語氣吐槽但不傷人，會用一些有趣比喻'};
+  return m[S.sets.coachStyle||'gentle'];
+}
+
+function buildCoachSystem(){
+  const bans=S.sets.banFoods&&S.sets.banFoods.length?'用戶的禁止食物清單：'+S.sets.banFoods.join('、')+'。':'';
+  const note=S.sets.coachNote?'用戶備註：'+S.sets.coachNote+'。':'';
+  return `你是台灣用戶的個人飲食教練。${coachStyleDesc()}。回答用繁體中文，100-150字，口語化，像在跟朋友說話。${bans}${note}如果用戶違反禁止清單，要明確指出。`;
+}
+
+function buildCoachCtx(){
+  const log=todayLog();
+  const cal=totalCal(log);
+  const fl=log.foods.map(f=>`${f.time||''} ${f.n}(${f.cal||0}kcal)`).join('、')||'今日尚未進食';
+  const n=new Date();
+  const fh=fastHours();
+  const pct=Math.round(cal/S.sets.cg*100);
+  const bodyInfo=S.sets.height&&S.sets.bw?`身高${S.sets.height}cm、體重${S.sets.bw}kg、`:'';
+  const fi=getFastInfo();
+  const modeStr=fi.achievedMode?'已達成'+fi.achievedMode:'斷食中 '+fi.fastH.toFixed(1)+'h／目標'+fi.fastGoalH+'h';
+  return `【用戶資訊】${bodyInfo}彈性斷食（基礎 ${fi.fastGoalH}:${24-fi.fastGoalH}）、今日狀態：${modeStr}，每日熱量目標${S.sets.cg}kcal，目標體重${S.sets.wg||'未設定'}kg。
+【今日狀況】已攝取${cal}kcal（目標${pct}%），今日飲食：${fl}。現在${n.getHours()}:${n.getMinutes().toString().padStart(2,'0')}，已斷食${fh.toFixed(1)}小時。`;
+}
+
+function addChatMsg(role, text, type='normal'){
+  const n=new Date();
+  const timeStr=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+  chatHistory.push({role,text,type,time:timeStr});
+  renderChat();
+}
+
+function renderChat(){
+  const el=document.getElementById('chat-messages');
+  if(!el)return;
+  if(!chatHistory.length){
+    el.innerHTML='<div style="text-align:center;color:var(--text3);font-size:13px;padding:20px 0">和你的飲食教練對話吧！<br>記錄食物後教練會主動提醒你</div>';
+    return;
+  }
+  el.innerHTML=chatHistory.map(m=>{
+    if(m.role==='user') return `<div class="chat-row user"><div class="chat-bubble user">${m.text.split('\n').join('<br>')}</div><div class="chat-time">${m.time||''}</div></div>`;
+    const cls=m.type==='warn'?'coach warn':m.type==='good'?'coach good':'coach';
+    return `<div class="chat-row coach"><div class="chat-bubble ${cls}">${m.text.split('\n').join('<br>')}</div><div class="chat-time">${m.time||''}</div></div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+
+function addTypingIndicator(){
+  const el=document.getElementById('chat-messages');
+  if(!el)return;
+  const div=document.createElement('div');
+  div.className='chat-row coach';
+  div.id='typing-row';
+  div.innerHTML='<div class="chat-bubble coach"><div class="typing-dot"><span></span><span></span><span></span></div></div>';
+  el.appendChild(div);
+  el.scrollTop=el.scrollHeight;
+}
+
+function removeTypingIndicator(){
+  const el=document.getElementById('typing-row');
+  if(el)el.remove();
+}
+
+async function callCoachAPI(userMsg, systemOverride){
+  const msgs=chatHistory.filter(m=>m.role==='user'||m.role==='coach').slice(-8).map(m=>({role:m.role==='user'?'user':'assistant',content:m.text}));
+  if(userMsg) msgs.push({role:'user',content:userMsg});
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:400,
+        system:(systemOverride||buildCoachSystem())+'\n\n'+buildCoachCtx(),
+        messages:msgs.length?msgs:[{role:'user',content:userMsg||'你好'}]
+      })
+    });
+    const d=await r.json();
+    return d.content&&d.content[0]&&d.content[0].text||'抱歉，我現在無法回應。';
+  }catch(e){return '連線失敗，請稍後再試。';}
+}
+
+async function coachQ(q){
+  goPage('ai');
+  addChatMsg('user',q);
+  addTypingIndicator();
+  const reply=await callCoachAPI(q);
+  removeTypingIndicator();
+  const type=reply.includes('注意')||reply.includes('超標')||reply.includes('禁止')||reply.includes('不建議')?'warn':
+             reply.includes('棒')||reply.includes('很好')||reply.includes('達標')||reply.includes('繼續')?'good':'normal';
+  addChatMsg('coach',reply,type);
+}
+
+async function sendChat(){
+  const inp=document.getElementById('chat-input');
+  const q=inp.value.trim();
+  if(!q)return;
+  inp.value='';
+  addChatMsg('user',q);
+  addTypingIndicator();
+  const reply=await callCoachAPI(q);
+  removeTypingIndicator();
+  const type=reply.includes('注意')||reply.includes('超標')||reply.includes('禁止')||reply.includes('不建議')?'warn':
+             reply.includes('棒')||reply.includes('很好')||reply.includes('達標')||reply.includes('繼續')?'good':'normal';
+  addChatMsg('coach',reply,type);
+}
+
+async function coachCheckAfterFood(foodName, cal){
+  const bans=S.sets.banFoods||[];
+  const log=todayLog();
+  const totalC=totalCal(log);
+  const pct=Math.round(totalC/S.sets.cg*100);
+  const warn=S.sets.calWarn||90;
+  const isBanned=bans.some(b=>foodName.includes(b)||b.includes(foodName));
+  if(!isBanned && pct<warn) return;
+  const reason=isBanned?`用戶剛記錄了「${foodName}」，這是他的禁止清單裡的食物，請直接點出來，用${S.sets.coachStyle==='funny'?'幽默':'直接'}的方式提醒他`
+    :`用戶剛記錄了「${foodName}」後，今日已達目標的${pct}%（${totalC}kcal），請給一個簡短即時的回應`;
+  addTypingIndicator();
+  setTimeout(async()=>{
+    const reply=await callCoachAPI(null, buildCoachSystem()+'\n\n'+buildCoachCtx()+'\n\n'+reason);
+    removeTypingIndicator();
+    addChatMsg('coach',reply,isBanned?'warn':pct>=100?'warn':'normal');
+    const nav=document.getElementById('nav-ai');
+    nav.style.color='#E24B4A';
+    setTimeout(()=>nav.style.color='',3000);
+  },800);
+}
+
+function clearChat(){chatHistory=[];renderChat();}
+
+async function aiQ(q){coachQ(q);}
+async function aiCustom(){sendChat();}
+
+async function inlineLookup(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){toast('請先輸入食物名稱');return;}
+  const box=document.getElementById('inline-cal-result');
+  box.style.display='block';
+  box.innerHTML='<span style="color:var(--blue-text);font-size:13px">AI 查詢中...</span>';
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:400,
+        system:'你是食品營養師。使用者輸入食物名稱，你必須回傳 JSON 格式，不得有任何其他文字。格式：{"cal_per_unit":數字,"unit":"單位名稱","cal_min":數字,"cal_max":數字,"note":"簡短說明","category":"sweet或store或snack或drink或fruit或other"}。cal_per_unit 是最常見份量的熱量（整數kcal）。',
+        messages:[{role:'user',content:'食物：'+name}]
+      })
+    });
+    const d=await r.json();
+    const raw=d.content&&d.content[0]&&d.content[0].text||'{}';
+    let info;
+    try{info=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){info=null;}
+    if(!info||!info.cal_per_unit){
+      box.innerHTML='<span style="color:var(--blue-text);font-size:13px">無法估算，請手動輸入熱量</span>';
+      return;
+    }
+    const catMap={sweet:'甜食/零食',store:'超商',snack:'小吃攤',drink:'飲料',fruit:'水果/輕食',other:'其他'};
+    box.innerHTML=`
+      <div style="font-size:13px;color:var(--blue-text);margin-bottom:8px">${info.note||''}</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div style="font-size:26px;font-weight:700;color:var(--blue-text);line-height:1">${info.cal_per_unit}</div>
+          <div style="font-size:11px;color:var(--text2)">kcal / ${info.unit||'份'}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text2);flex:1">範圍 ${info.cal_min||'?'}–${info.cal_max||'?'} kcal<br>視品牌份量而異</div>
+        <button onclick="applyCalLookup(${info.cal_per_unit},'${info.category||'other'}')" style="padding:8px 14px;background:var(--blue);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap">套用 ${info.cal_per_unit} kcal</button>
+      </div>`;
+  }catch(e){
+    box.innerHTML='<span style="color:var(--blue-text);font-size:13px">連線失敗，請手動輸入</span>';
+  }
+}
+
+function applyCalLookup(cal, cat){
+  document.getElementById('f-cal').value=cal;
+  const sel=document.getElementById('f-cat');
+  const opts=['sweet','store','snack','drink','fruit','other'];
+  if(opts.includes(cat)) sel.value=cat;
+  document.getElementById('inline-cal-result').style.display='none';
+  toast('熱量已填入：'+cal+' kcal');
+}
+
+async function callAI(q){coachQ(q);}
+
+function exportData(){
+  const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='diet-'+tk()+'.json';a.click();
+}
+
+function clearAll(){
+  if(confirm('確定要清除所有飲食記錄嗎？此動作無法復原。')){
+    S.logs={};S.lastEat=null;ss();renderHome();toast('已清除所有記錄');
+  }
+}
+
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+ls();renderHome();
+document.getElementById('quick-grid').innerHTML=QUICK.map(f=>`<button class="quick-btn" onclick="quickAdd('${f.n}',${f.c},'${f.t}')">${f.n}<span class="quick-cal">${f.c} kcal</span></button>`).join('');
+resetWaterTimer();
+setInterval(()=>{
+  if(document.getElementById('page-home').classList.contains('active'))renderFastBar();
+},60000);
+</script>
+</body>
+</html>
