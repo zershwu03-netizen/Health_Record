@@ -723,17 +723,17 @@ textarea { resize: none; min-height: 70px; }
 
       <div class="card">
         <div class="card-title">Anthropic API Key</div>
-        <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">AI 功能（飲食教練、熱量查詢、週報）需要 API Key 才能使用。Key 僅存在本機，不會上傳。</p>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">AI 功能（飲食教練、熱量查詢、週報）需要 Google Gemini API Key 才能使用。Key 僅存在本機，不會上傳。</p>
         <div class="form-group">
           <label class="form-label">API Key</label>
           <div style="display:flex;gap:8px">
-            <input type="password" id="s-apikey" placeholder="sk-ant-api03-..." style="flex:1;font-family:monospace;font-size:13px" onchange="saveApiKey()">
+            <input type="password" id="s-apikey" placeholder="AIza..." style="flex:1;font-family:monospace;font-size:13px" onchange="saveApiKey()">
             <button onclick="toggleApiKeyVis()" style="flex-shrink:0;padding:0 12px;height:42px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-family:inherit;color:var(--text)">顯示</button>
           </div>
         </div>
         <div id="apikey-status" style="font-size:12px;margin-top:4px"></div>
         <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="testApiKey()">測試連線</button>
-        <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6">前往 <span style="color:var(--blue-text)">console.anthropic.com</span> → API Keys → Create Key 取得。新帳號有 $5 免費額度。</p>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6">前往 <span style="color:var(--blue-text)">aistudio.google.com</span> → Get API Key 取得。完全免費，不需綁信用卡。</p>
       </div>
 
       <div class="card">
@@ -1160,18 +1160,8 @@ async function genWeekReport(tab){
   const summary=buildWeekSummary(tab);
   if(!summary){area.innerHTML='<p class="empty-hint">這個區間還沒有足夠的記錄</p>';return;}
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:800,
-        system:'你是台灣用戶的飲食分析師。根據用戶的飲食數據產生繁體中文週報，格式：1)本週亮點 2)需要改善的地方 3)飲食花費分析 4)下週具體建議。語氣'+{gentle:'溫和鼓勵',strict:'直接嚴格',funny:'幽默有趣'}[S.sets.coachStyle||'gentle']+'，總長度約250字。',
-        messages:[{role:'user',content:summary+'\n\n請幫我產生'+(tab==='week'?'週報':'月報')+'分析。'}]
-      })
-    });
-    const d=await r.json();
-    const txt=d.content&&d.content[0]&&d.content[0].text||'無法產生報告';
+    const sys='你是台灣用戶的飲食分析師。根據用戶的飲食數據產生繁體中文週報，格式：1)本週亮點 2)需要改善的地方 3)飲食花費分析 4)下週具體建議。語氣'+{gentle:'溫和鼓勵',strict:'直接嚴格',funny:'幽默有趣'}[S.sets.coachStyle||'gentle']+'，總長度約250字。';
+    const txt=await callGemini(sys, summary+'\n\n請幫我產生'+(tab==='week'?'週報':'月報')+'分析。', 800);
     area.innerHTML='<div class="weekly-report-box">'+txt.split('\n').join('<br>')+'</div>';
   }catch(e){area.innerHTML='<p style="color:var(--red-text);font-size:13px">連線失敗，請稍後再試</p>';}
 }
@@ -1734,21 +1724,13 @@ function removeTypingIndicator(){
 }
 
 async function callCoachAPI(userMsg, systemOverride){
-  const msgs=chatHistory.filter(m=>m.role==='user'||m.role==='coach').slice(-8).map(m=>({role:m.role==='user'?'user':'assistant',content:m.text}));
-  if(userMsg) msgs.push({role:'user',content:userMsg});
+  const history=chatHistory.filter(m=>m.role==='user'||m.role==='coach').slice(-8);
+  const sys=(systemOverride||buildCoachSystem())+'\n\n'+buildCoachCtx();
+  let fullPrompt='';
+  history.forEach(m=>{ fullPrompt+=(m.role==='user'?'用戶：':'教練：')+m.text+'\n'; });
+  if(userMsg) fullPrompt+='用戶：'+userMsg;
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        system:(systemOverride||buildCoachSystem())+'\n\n'+buildCoachCtx(),
-        messages:msgs.length?msgs:[{role:'user',content:userMsg||'你好'}]
-      })
-    });
-    const d=await r.json();
-    return d.content&&d.content[0]&&d.content[0].text||'抱歉，我現在無法回應。';
+    return await callGemini(sys, fullPrompt||'你好', 400);
   }catch(e){return '連線失敗，請稍後再試。';}
 }
 
@@ -1785,18 +1767,8 @@ async function sendChat(){
   // Use AI to determine intent: record vs question
   addTypingIndicator();
   try{
-    const ir=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:10,
-        system:'判斷這句話是「正在記錄剛吃的食物」還是「在發問或討論」。只回傳單一單字：record 或 question，不要其他文字。\n判斷標準：\n- record：用戶明確陳述剛剛吃了什麼（例：我剛吃了雞腿、我剛才喝了豆漿）\n- question：任何疑問、假設、過去式、建議請求（例：如果我吃了、我吃了太多怎麼辦、我可以吃嗎、昨天我吃了）',
-        messages:[{role:'user',content:q}]
-      })
-    });
-    const id=await ir.json();
-    const intent=(id.content&&id.content[0]&&id.content[0].text||'question').trim().toLowerCase();
+    const intentSys='判斷這句話是「正在記錄剛吃的食物」還是「在發問或討論」。只回傳單一單字：record 或 question，不要其他文字。\n判斷標準：\n- record：用戶明確陳述剛剛吃了什麼（例：我剛吃了雞腿、我剛才喝了豆漿）\n- question：任何疑問、假設、過去式、建議請求（例：如果我吃了、我吃了太多怎麼辦、我可以吃嗎、昨天我吃了）';
+    const intent=(await callGemini(intentSys, q, 10)).trim().toLowerCase();
     removeTypingIndicator();
 
     if(intent==='record'){
@@ -1823,18 +1795,8 @@ async function parseAndAddFoods(userMsg, foodText){
   const now=new Date();
   const timeStr=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:600,
-        system:'你是食品營養師。使用者說他吃了哪些食物，你要解析成 JSON 陣列，每個項目包含：name(食物名稱)、cal(估算熱量kcal整數)、cat(類別：chicken/store/braised/snack/sweet/drink/fruit/other)。只回傳 JSON 陣列，不要其他文字。範例：[{"name":"雞胸肉","cal":165,"cat":"other"},{"name":"豆干","cal":80,"cat":"braised"}]',
-        messages:[{role:'user',content:'食物：'+foodText}]
-      })
-    });
-    const d=await r.json();
-    const raw=d.content&&d.content[0]&&d.content[0].text||'[]';
+    const parserSys='你是食品營養師。使用者說他吃了哪些食物，你要解析成 JSON 陣列，每個項目包含：name(食物名稱)、cal(估算熱量kcal整數)、cat(類別：chicken/store/braised/snack/sweet/drink/fruit/other)。只回傳 JSON 陣列，不要其他文字。範例：[{"name":"雞胸肉","cal":165,"cat":"other"},{"name":"豆干","cal":80,"cat":"braised"}]';
+    const raw=await callGemini(parserSys, '食物：'+foodText, 600);
     let items;
     try{items=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){items=null;}
     removeTypingIndicator();
@@ -1967,18 +1929,8 @@ async function inlineLookup(){
   box.style.display='block';
   box.innerHTML='<span style="color:var(--blue-text);font-size:13px">AI 查詢中...</span>';
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        system:'你是食品營養師。使用者輸入食物名稱，你必須回傳 JSON 格式，不得有任何其他文字。格式：{"cal_per_unit":數字,"unit":"單位名稱","cal_min":數字,"cal_max":數字,"note":"簡短說明","category":"sweet或store或snack或drink或fruit或other"}。cal_per_unit 是最常見份量的熱量（整數kcal）。',
-        messages:[{role:'user',content:'食物：'+name}]
-      })
-    });
-    const d=await r.json();
-    const raw=d.content&&d.content[0]&&d.content[0].text||'{}';
+    const lookupSys='你是食品營養師。使用者輸入食物名稱，你必須回傳 JSON 格式，不得有任何其他文字。格式：{"cal_per_unit":數字,"unit":"單位名稱","cal_min":數字,"cal_max":數字,"note":"簡短說明","category":"sweet或store或snack或drink或fruit或other"}。cal_per_unit 是最常見份量的熱量（整數kcal）。';
+    const raw=await callGemini(lookupSys, '食物：'+name, 400);
     let info;
     try{info=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){info=null;}
     if(!info||!info.cal_per_unit){
@@ -2217,6 +2169,20 @@ function renderWeightChart(){
 
 function getApiKey(){return localStorage.getItem('diet_apikey')||'';}
 
+async function callGemini(systemPrompt, userPrompt, maxTokens=1000){
+  const key=getApiKey();
+  const url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key='+key;
+  const body={
+    contents:[{role:'user',parts:[{text:userPrompt}]}],
+    systemInstruction:{parts:[{text:systemPrompt}]},
+    generationConfig:{maxOutputTokens:maxTokens}
+  };
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(d.error) throw new Error(d.error.message||'API error');
+  return d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text||'';
+}
+
 function saveApiKey(){
   const val=document.getElementById('s-apikey').value.trim();
   if(val) localStorage.setItem('diet_apikey',val);
@@ -2236,7 +2202,7 @@ function updateApiKeyStatus(){
   if(!el) return;
   const key=getApiKey();
   if(!key){el.textContent='尚未設定 API Key，AI 功能無法使用';el.style.color='var(--red-text)';return;}
-  if(!key.startsWith('sk-ant-')){el.textContent='格式不正確，應以 sk-ant- 開頭';el.style.color='var(--amber-text)';return;}
+  if(!key.startsWith('AIza')){el.textContent='格式可能不正確，Gemini Key 通常以 AIza 開頭';el.style.color='var(--amber-text)';}
   el.textContent='✓ API Key 已設定';el.style.color='var(--green-text)';
 }
 
@@ -2246,13 +2212,11 @@ async function testApiKey(){
   if(!key){if(el){el.textContent='請先輸入 API Key';el.style.color='var(--red-text)';}return;}
   if(el){el.textContent='測試中...';el.style.color='var(--text2)';}
   try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:10,messages:[{role:'user',content:'hi'}]})
-    });
-    if(r.ok){if(el){el.textContent='✓ 連線成功！API Key 有效';el.style.color='var(--green-text)';}}
-    else{const d=await r.json();if(el){el.textContent='連線失敗：'+(d.error&&d.error.message||r.status);el.style.color='var(--red-text)';}}
+    const testUrl='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key='+key;
+    const r=await fetch(testUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:'hi'}]}],generationConfig:{maxOutputTokens:5}})});
+    const d=await r.json();
+    if(r.ok&&!d.error){if(el){el.textContent='✓ 連線成功！API Key 有效';el.style.color='var(--green-text)';}}
+    else{if(el){el.textContent='連線失敗：'+(d.error&&d.error.message||r.status);el.style.color='var(--red-text)';}}
   }catch(e){if(el){el.textContent='連線失敗，請檢查網路';el.style.color='var(--red-text)';}}
 }
 
