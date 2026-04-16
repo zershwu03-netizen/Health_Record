@@ -178,8 +178,13 @@ textarea { resize: none; min-height: 70px; }
 .mode-btn.sel { background: var(--green); border-color: var(--green); color: #fff; }
 
 /* Toast */
-.toast { position: fixed; bottom: calc(70px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 9px 20px; border-radius: 22px; font-size: 13px; z-index: 999; pointer-events: none; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
+.toast { position: fixed; bottom: calc(76px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 9px 20px; border-radius: 22px; font-size: 13px; z-index: 999; pointer-events: none; opacity: 0; transition: opacity 0.2s; white-space: nowrap; }
 .toast.show { opacity: 1; }
+.undo-toast { position: fixed; bottom: calc(82px + var(--safe-bottom)); left: 12px; right: 12px; transform: none; background: #1a1a1a; color: #fff; padding: 12px 16px; border-radius: 16px; font-size: 14px; z-index: 1000; display: flex; align-items: center; gap: 12px; opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+.undo-toast.show { opacity: 1; pointer-events: auto; }
+.undo-msg { flex: 1; }
+.undo-btn { background: none; border: 1.5px solid rgba(255,255,255,0.6); border-radius: 14px; color: #fff; font-size: 13px; font-weight: 600; padding: 5px 14px; cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0; }
+.undo-countdown { font-size: 11px; color: rgba(255,255,255,0.5); flex-shrink: 0; min-width: 20px; text-align: right; }
 
 .empty-hint { color: var(--text3); font-size: 13px; padding: 8px 0; text-align: center; }
 .section-divider { border-top: 0.5px solid var(--border); padding-top: 10px; margin-top: 8px; }
@@ -250,14 +255,67 @@ textarea { resize: none; min-height: 70px; }
 .typing-dot span:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
 
+/* Edit food modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:2000;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal-sheet{background:var(--bg);border-radius:20px 20px 0 0;padding:16px 16px calc(16px + var(--safe-bottom));width:100%;max-width:560px;transform:translateY(100%);transition:transform 0.3s}
+.modal-overlay.show .modal-sheet{transform:translateY(0)}
+.modal-handle{width:36px;height:4px;background:var(--bg3);border-radius:2px;margin:0 auto 14px}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:14px;text-align:center}
+
+/* Pull to refresh */
+.ptr-indicator{height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3);transition:height 0.2s;gap:6px}
+.ptr-indicator.visible{height:36px}
+.ptr-spin{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Next meal */
+.next-meal-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text2);margin-top:8px;padding-top:8px;border-top:0.5px solid var(--border)}
+.next-meal-val{font-weight:500;color:var(--text)}
+
+/* Weight chart */
+.weight-chart-wrap{width:100%;height:100px;margin:8px 0 4px;position:relative}
+.weight-chart-wrap svg{width:100%;height:100%}
+
 </style>
 </head>
 <body>
 <div id="app">
   <div id="content">
 
+    <!-- EDIT FOOD MODAL -->
+    <div class="modal-overlay" id="edit-modal" onclick="closeEditModal(event)">
+      <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-title">編輯飲食記錄</div>
+        <input type="hidden" id="edit-idx">
+        <div class="form-group"><label class="form-label">食物名稱</label><input type="text" id="edit-name"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">時間</label><input type="time" id="edit-time"></div>
+          <div class="form-group"><label class="form-label">類別</label>
+            <select id="edit-cat">
+              <option value="chicken">鹹水雞</option><option value="store">超商</option>
+              <option value="braised">滷味</option><option value="snack">小吃攤</option>
+              <option value="sweet">甜食/零食</option><option value="drink">飲料</option>
+              <option value="fruit">水果/輕食</option><option value="other">其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">熱量 (kcal)</label><input type="number" id="edit-cal"></div>
+          <div class="form-group"><label class="form-label">花費 (NT$)</label><input type="number" id="edit-price"></div>
+        </div>
+        <div class="form-group"><label class="form-label">備註</label><input type="text" id="edit-note"></div>
+        <div class="btn-row">
+          <button class="btn btn-green" style="flex:1" onclick="saveEditFood()">儲存</button>
+          <button class="btn btn-ghost" onclick="closeEditModal()">取消</button>
+        </div>
+      </div>
+    </div>
+
     <!-- HOME -->
     <div id="page-home" class="page active">
+      <div class="ptr-indicator" id="ptr-indicator"><div class="ptr-spin"></div><span>放開以重新整理</span></div>
       <div class="page-title">今日 <span id="today-date" style="font-size:14px;color:var(--text2);font-weight:400"></span></div>
       <div class="stat-row">
         <div class="stat"><div class="stat-val c-green" id="h-fast">0h</div><div class="stat-lbl">已斷食</div></div>
@@ -313,6 +371,13 @@ textarea { resize: none; min-height: 70px; }
           <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
         </div>
 
+        <div class="next-meal-row">
+          <span>預計下次進食</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="time" id="next-meal-time" style="width:90px;margin:0;height:28px;font-size:12px;padding:0 8px" onchange="setNextMeal(this.value)">
+            <span class="next-meal-val" id="next-meal-countdown">—</span>
+          </div>
+        </div>
         <div class="btn-row">
           <button class="btn btn-green btn-sm" onclick="markEatNow()">記錄剛剛進食</button>
           <button class="btn btn-ghost btn-sm" onclick="goPage('log')">新增飲食</button>
@@ -452,6 +517,9 @@ textarea { resize: none; min-height: 70px; }
             <input type="number" id="weight-input" placeholder="kg" style="width:70px;margin:0;height:34px;font-size:14px">
             <button onclick="addWeight()" style="padding:0 12px;height:34px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap">記錄</button>
           </div>
+        </div>
+        <div class="weight-chart-wrap" id="weight-chart-wrap" style="display:none">
+          <svg id="weight-chart-svg" viewBox="0 0 300 100" preserveAspectRatio="none"></svg>
         </div>
         <div id="weight-list"><p class="empty-hint">還沒有體重記錄，量了就記！</p></div>
       </div>
@@ -648,11 +716,11 @@ textarea { resize: none; min-height: 70px; }
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             匯出 JSON（備份所有資料）
           </button>
-          <label style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--radius-md);border:0.5px solid var(--border2);cursor:pointer;font-size:13px;color:var(--text);background:var(--bg);font-family:inherit" id="import-label">
+          <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;gap:10px;position:relative;overflow:hidden" onclick="document.getElementById('import-file').click()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             匯入 JSON（從備份還原）
-            <input type="file" accept=".json" onchange="importData(event)" style="display:none">
-          </label>
+          </button>
+          <input type="file" id="import-file" accept=".json" onchange="importData(event)" style="display:none">
           <div id="import-result" style="display:none;font-size:12px;padding:8px 12px;border-radius:var(--radius-sm)"></div>
         </div>
         <div style="border-top:0.5px solid var(--border);margin-top:12px;padding-top:12px">
@@ -689,6 +757,11 @@ textarea { resize: none; min-height: 70px; }
   </nav>
 </div>
 <div class="toast" id="toast"></div>
+<div class="undo-toast" id="undo-toast">
+  <span class="undo-msg" id="undo-msg"></span>
+  <button class="undo-btn" onclick="doUndo()">撤銷</button>
+  <span class="undo-countdown" id="undo-countdown">8</span>
+</div>
 
 <script>
 const QUICK=[
@@ -771,6 +844,18 @@ function renderHomeBMI(){
   const suggest=Math.round(bmr*act)-deficit;
   const idealMin=Math.round(18.5*(h/100)**2);
   const idealMax=Math.round(24*(h/100)**2);
+  const targetW=parseFloat(S.sets.wg)||null;
+  // Goal weight line: prioritise user's target over ideal range message
+  let goalLine='';
+  if(targetW){
+    const diff=(w-targetW).toFixed(1);
+    const pctDone=targetW<w?Math.max(0,Math.min(100,Math.round((1-(w-targetW)/(w-targetW+10))*100))):100;
+    if(parseFloat(diff)>0) goalLine=`距目標體重 ${targetW}kg 還差 <strong style="color:${clr}">${diff} kg</strong>`;
+    else if(parseFloat(diff)<0) goalLine=`已超過目標體重 ${targetW}kg（超 ${Math.abs(parseFloat(diff))} kg）`;
+    else goalLine=`🎉 已達目標體重 ${targetW}kg！`;
+  } else {
+    goalLine=w>idealMax?'距理想體重還需減 '+(w-idealMax).toFixed(1)+' kg':w<idealMin?'體重偏低，請注意均衡飲食':'已在理想範圍內';
+  }
   wrap.innerHTML=`
     <div class="home-bmi-card" style="background:${bgClr}">
       <div>
@@ -780,7 +865,7 @@ function renderHomeBMI(){
       <div class="home-bmi-info">
         <div style="font-size:13px;font-weight:600;color:var(--text)">建議攝取 <span style="color:${clr}">${suggest}</span> kcal/天</div>
         <div class="home-bmi-suggest">理想體重 ${idealMin}–${idealMax} kg｜現在 ${w} kg</div>
-        <div class="home-bmi-suggest">${w>idealMax?'距理想體重還需減 '+(w-idealMax).toFixed(1)+' kg':w<idealMin?'體重偏低，請注意均衡飲食':'已在理想範圍內！'}</div>
+        <div class="home-bmi-suggest" style="color:var(--text)">${goalLine}</div>
       </div>
     </div>`;
 }
@@ -881,7 +966,7 @@ function renderFastBar(){
   if(statusEl){
     if(phase==='empty') statusEl.textContent='記錄第一筆飲食後自動開始計時';
     else if(phase==='eating') statusEl.textContent='進食窗口開放中，吃完後斷食自動開始';
-    else if(phase==='done') statusEl.textContent='🎉 今日 '+fastGoalH+':'+( 24-fastGoalH)+' 斷食達成！';
+    else if(phase==='done'){statusEl.textContent='🎉 今日 '+fastGoalH+':'+(24-fastGoalH)+' 斷食達成！';checkFastGoalVibrate(fastH,fastGoalH);}
     else if(pct>=75) statusEl.textContent='快到了！再撐 '+formatLeft(fastGoalH-fastH);
     else statusEl.textContent='斷食中，距目標 '+formatLeft(fastGoalH-fastH);
   }
@@ -933,8 +1018,8 @@ function renderHomeFoods(){
   const todaySpend=log.foods.reduce((s,f)=>s+(f.price||0),0);
   const spendEl=document.getElementById('today-spend-wrap');
   if(spendEl)spendEl.innerHTML=todaySpend>0?`<div style="font-size:12px;color:var(--text2);margin-top:4px;text-align:right">今日餐費 <strong style="color:var(--amber)">NT$${todaySpend}</strong></div>`:'';
-  el.innerHTML=log.foods.map(f=>`
-    <div class="food-item">
+  el.innerHTML=log.foods.map((f,i)=>`
+    <div class="food-item" oncontextmenu="openEditModal(event,${i})" style="-webkit-user-select:none;user-select:none" ontouchstart="startLongPress(${i},event)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">
       <div class="food-dot" style="background:${CAT_CLR[f.cat]||'#888'}"></div>
       <div class="food-info"><div class="food-name">${f.n}</div><div class="food-meta">${f.time||''}${f.note?' · '+f.note:''}</div></div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
@@ -1071,7 +1156,7 @@ function renderLogList(){
   const logSpendEl=document.getElementById('log-spend-summary');
   if(logSpendEl)logSpendEl.innerHTML=totalSpend>0?`今日餐費合計：<strong style="color:var(--amber)">NT$ ${totalSpend}</strong>`:'';
   el.innerHTML=log.foods.map((f,i)=>`
-    <div class="food-item">
+    <div class="food-item" oncontextmenu="openEditModal(event,${i})" style="-webkit-user-select:none;user-select:none" data-idx="${i}" ontouchstart="startLongPress(${i},event)" ontouchend="cancelLongPress()" ontouchmove="cancelLongPress()">
       <div class="food-dot" style="background:${CAT_CLR[f.cat]||'#888'}"></div>
       <div class="food-info"><div class="food-name">${f.n}</div><div class="food-meta">${f.time||''}${f.note?' · '+f.note:''}</div></div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-right:6px">
@@ -1114,8 +1199,66 @@ function delFood(i){
   todayLog().foods.splice(i,1);ss();renderLogList();
 }
 
+let undoStack=null;
+let undoTimer=null;
+let undoCountdownInterval=null;
+
+function showUndoToast(msg, undoFn){
+  clearTimeout(undoTimer);
+  clearInterval(undoCountdownInterval);
+  undoStack=undoFn;
+  const el=document.getElementById('undo-toast');
+  const cdEl=document.getElementById('undo-countdown');
+  document.getElementById('undo-msg').textContent=msg;
+  el.classList.add('show');
+  let secs=8;
+  if(cdEl) cdEl.textContent=secs;
+  undoCountdownInterval=setInterval(()=>{
+    secs--;
+    if(cdEl) cdEl.textContent=secs;
+    if(secs<=0) clearInterval(undoCountdownInterval);
+  },1000);
+  undoTimer=setTimeout(()=>{
+    el.classList.remove('show');
+    undoStack=null;
+    clearInterval(undoCountdownInterval);
+  },8000);
+}
+
+function doUndo(){
+  if(undoStack){undoStack();undoStack=null;}
+  clearTimeout(undoTimer);
+  clearInterval(undoCountdownInterval);
+  document.getElementById('undo-toast').classList.remove('show');
+  toast('已撤銷');
+}
+
 function markEatNow(){
-  S.lastEat=new Date().toISOString();ss();renderFastBar();toast('已記錄進食時間');
+  const prev=S.lastEat;
+  S.lastEat=new Date().toISOString();ss();renderFastBar();
+  showUndoToast('已記錄進食時間',()=>{
+    S.lastEat=prev;ss();renderFastBar();
+  });
+}
+
+function addWater(ml){
+  const log=todayLog();
+  const prev=log.water||0;
+  log.water=Math.min(prev+ml, S.sets.wgoal*1.5);
+  ss();renderWater();resetWaterTimer();
+  showUndoToast(`+${ml}ml 已記錄`,()=>{
+    todayLog().water=prev;ss();renderWater();
+  });
+}
+
+function setCups(n){
+  const log=todayLog();
+  const prev=log.water||0;
+  log.water=n*250;
+  ss();renderWater();resetWaterTimer();
+  showUndoToast(`喝水記錄為 ${n*250}ml`,()=>{
+    todayLog().water=prev;ss();renderWater();
+  });
 }
 
 function renderWater(){
@@ -1134,23 +1277,6 @@ function renderWater(){
   const hint=document.getElementById('water-next-hint');
   if(ml>=goal){hint.textContent='今日目標達成！保持下去';}
   else{const rem=goal-ml;hint.textContent=`還需 ${rem}ml（約 ${Math.ceil(rem/250)} 杯）`;}
-}
-
-function addWater(ml){
-  const log=todayLog();
-  log.water=Math.min((log.water||0)+ml, S.sets.wgoal*1.5);
-  ss();renderWater();
-  toast(`+${ml}ml 已記錄`);
-  resetWaterTimer();
-}
-
-function setCups(n){
-  const log=todayLog();
-  const newMl=n*250;
-  log.water=newMl;
-  ss();renderWater();
-  toast(`已記錄 ${newMl}ml`);
-  resetWaterTimer();
 }
 
 function dismissWaterNotif(){
@@ -1403,6 +1529,7 @@ function renderWeightList(){
       </div>
     </div>`;
   }).join('');
+  renderWeightChart();
 }
 
 function delWeight(date){
@@ -1590,12 +1717,73 @@ async function sendChat(){
   if(!q)return;
   inp.value='';
   addChatMsg('user',q);
+
+  // Detect "I just ate..." pattern and auto-parse foods
+  const eatPattern=/我(剛|剛剛|剛才)?(吃了|吃|喝了|喝)(.*)/;
+  const match=q.match(eatPattern);
+  if(match&&match[3]&&match[3].trim().length>1){
+    await parseAndAddFoods(q, match[3].trim());
+    return;
+  }
+
   addTypingIndicator();
   const reply=await callCoachAPI(q);
   removeTypingIndicator();
   const type=reply.includes('注意')||reply.includes('超標')||reply.includes('禁止')||reply.includes('不建議')?'warn':
              reply.includes('棒')||reply.includes('很好')||reply.includes('達標')||reply.includes('繼續')?'good':'normal';
   addChatMsg('coach',reply,type);
+}
+
+async function parseAndAddFoods(userMsg, foodText){
+  addTypingIndicator();
+  const now=new Date();
+  const timeStr=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:600,
+        system:'你是食品營養師。使用者說他吃了哪些食物，你要解析成 JSON 陣列，每個項目包含：name(食物名稱)、cal(估算熱量kcal整數)、cat(類別：chicken/store/braised/snack/sweet/drink/fruit/other)。只回傳 JSON 陣列，不要其他文字。範例：[{"name":"雞胸肉","cal":165,"cat":"other"},{"name":"豆干","cal":80,"cat":"braised"}]',
+        messages:[{role:'user',content:'食物：'+foodText}]
+      })
+    });
+    const d=await r.json();
+    const raw=d.content&&d.content[0]&&d.content[0].text||'[]';
+    let items;
+    try{items=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){items=null;}
+
+    removeTypingIndicator();
+
+    if(!items||!items.length){
+      addChatMsg('coach','我沒辦法解析這些食物，請在記錄頁面手動新增。','normal');
+      return;
+    }
+
+    // Add all foods to today's log
+    items.forEach(f=>{
+      todayLog().foods.push({n:f.name,cal:f.cal||0,cat:f.cat||'other',time:timeStr,note:'',price:0});
+    });
+    S.lastEat=new Date().toISOString();
+    ss();
+
+    const totalC=items.reduce((s,f)=>s+(f.cal||0),0);
+    const list=items.map(f=>`${f.name}（約${f.cal}kcal）`).join('、');
+    const reply=`已記錄 ${timeStr}：${list}。\n合計約 ${totalC} kcal。\n\n花費可以在記錄頁面點選各項目後補填。`;
+    addChatMsg('coach',reply,'good');
+
+    // Refresh home if visible
+    if(document.getElementById('page-home').classList.contains('active')) renderHome();
+    if(document.getElementById('page-log').classList.contains('active')) renderLogList();
+
+    // Coach check
+    items.forEach(f=>coachCheckAfterFood(f.name,f.cal));
+
+  }catch(e){
+    removeTypingIndicator();
+    addChatMsg('coach','連線失敗，請稍後再試。','normal');
+  }
 }
 
 async function coachCheckAfterFood(foodName, cal){
@@ -1745,11 +1933,149 @@ function toast(msg){
   toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
 }
 
+// ── Edit food modal ──────────────────────────────
+let longPressTimer=null;
+
+function startLongPress(idx, e){
+  longPressTimer=setTimeout(()=>{
+    if(navigator.vibrate) navigator.vibrate(40);
+    openEditModal(null, idx);
+  }, 500);
+}
+function cancelLongPress(){ clearTimeout(longPressTimer); }
+
+function openEditModal(e, idx){
+  if(e) e.preventDefault();
+  const f=todayLog().foods[idx];
+  if(!f) return;
+  document.getElementById('edit-idx').value=idx;
+  document.getElementById('edit-name').value=f.n||'';
+  document.getElementById('edit-time').value=f.time||'';
+  document.getElementById('edit-cat').value=f.cat||'other';
+  document.getElementById('edit-cal').value=f.cal||'';
+  document.getElementById('edit-price').value=f.price||'';
+  document.getElementById('edit-note').value=f.note||'';
+  document.getElementById('edit-modal').classList.add('show');
+}
+
+function closeEditModal(e){
+  if(e&&e.target!==document.getElementById('edit-modal')) return;
+  document.getElementById('edit-modal').classList.remove('show');
+}
+
+function saveEditFood(){
+  const idx=parseInt(document.getElementById('edit-idx').value);
+  const foods=todayLog().foods;
+  if(idx<0||idx>=foods.length) return;
+  foods[idx]={
+    n:document.getElementById('edit-name').value.trim()||foods[idx].n,
+    time:document.getElementById('edit-time').value,
+    cat:document.getElementById('edit-cat').value,
+    cal:parseInt(document.getElementById('edit-cal').value)||0,
+    price:parseInt(document.getElementById('edit-price').value)||0,
+    note:document.getElementById('edit-note').value.trim()
+  };
+  ss();
+  document.getElementById('edit-modal').classList.remove('show');
+  renderLogList();renderHomeFoods();
+  toast('已更新記錄');
+}
+
+// ── Pull to refresh ───────────────────────────────
+let ptrStartY=0, ptrPulling=false;
+function initPullToRefresh(){
+  const content=document.getElementById('content');
+  content.addEventListener('touchstart',e=>{
+    if(content.scrollTop===0) ptrStartY=e.touches[0].clientY;
+  },{passive:true});
+  content.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-ptrStartY;
+    if(dy>40&&content.scrollTop===0){
+      ptrPulling=true;
+      document.getElementById('ptr-indicator').classList.add('visible');
+    }
+  },{passive:true});
+  content.addEventListener('touchend',()=>{
+    if(ptrPulling){
+      ptrPulling=false;
+      document.getElementById('ptr-indicator').classList.remove('visible');
+      renderFastBar();renderHome();
+      toast('已重新整理');
+    }
+  });
+}
+
+// ── Next meal countdown ───────────────────────────
+function setNextMeal(val){
+  const log=todayLog();
+  log.nextMeal=val;
+  ss();
+  updateNextMealCountdown();
+}
+
+function updateNextMealCountdown(){
+  const log=todayLog();
+  const el=document.getElementById('next-meal-countdown');
+  const inp=document.getElementById('next-meal-time');
+  if(!el) return;
+  if(log.nextMeal && inp && !inp.value) inp.value=log.nextMeal;
+  if(!log.nextMeal){el.textContent='—';return;}
+  const now=new Date();
+  const[h,m]=log.nextMeal.split(':').map(Number);
+  const target=new Date();target.setHours(h,m,0,0);
+  if(target<now) target.setDate(target.getDate()+1);
+  const diff=(target-now)/60000;
+  if(diff<=0){el.textContent='到了！';el.style.color='var(--green)';return;}
+  const hh=Math.floor(diff/60), mm=Math.round(diff%60);
+  el.textContent=(hh>0?hh+'h ':'')+mm+'min 後';
+  el.style.color=diff<30?'var(--amber)':'var(--text)';
+}
+
+// ── Vibration on fasting goal ─────────────────────
+let fastGoalVibrated=false;
+function checkFastGoalVibrate(fastH, goalH){
+  if(!fastGoalVibrated && fastH>=goalH){
+    if(navigator.vibrate) navigator.vibrate([100,50,100,50,200]);
+    fastGoalVibrated=true;
+    setTimeout(()=>{fastGoalVibrated=false;},3600000);
+  }
+}
+
+// ── Weight chart ──────────────────────────────────
+function renderWeightChart(){
+  const ws=(S.weights||[]).slice(-12);
+  const wrap=document.getElementById('weight-chart-wrap');
+  const svg=document.getElementById('weight-chart-svg');
+  if(!wrap||!svg) return;
+  if(ws.length<2){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const vals=ws.map(w=>w.kg);
+  const minV=Math.min(...vals)-1, maxV=Math.max(...vals)+1;
+  const W=300, H=100, pad=6;
+  const x=i=>pad+(W-pad*2)*i/(ws.length-1);
+  const y=v=>H-pad-(H-pad*2)*(v-minV)/(maxV-minV);
+  const pts=ws.map((w,i)=>x(i)+','+y(w.kg).toFixed(1)).join(' ');
+  const targetW=parseFloat(S.sets.wg);
+  const targetLine=targetW&&targetW>=minV&&targetW<=maxV
+    ?`<line x1="${pad}" y1="${y(targetW).toFixed(1)}" x2="${W-pad}" y2="${y(targetW).toFixed(1)}" stroke="#1D9E75" stroke-width="1" stroke-dasharray="3,3"/>`:'';
+  const dots=ws.map((w,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(w.kg).toFixed(1)}" r="3" fill="#378ADD"/><text x="${x(i).toFixed(1)}" y="${(y(w.kg)-6).toFixed(1)}" text-anchor="middle" font-size="8" fill="#5F5E5A">${w.kg}</text>`).join('');
+  svg.innerHTML=`
+    <polyline points="${pts}" fill="none" stroke="#378ADD" stroke-width="1.5" stroke-linejoin="round"/>
+    ${targetLine}
+    ${dots}`;
+}
+
 ls();renderHome();
 document.getElementById('quick-grid').innerHTML=QUICK.map(f=>`<button class="quick-btn" onclick="quickAdd('${f.n}',${f.c},'${f.t}')">${f.n}<span class="quick-cal">${f.c} kcal</span></button>`).join('');
 resetWaterTimer();
+initPullToRefresh();
 setInterval(()=>{
-  if(document.getElementById('page-home').classList.contains('active'))renderFastBar();
+  if(document.getElementById('page-home').classList.contains('active')){
+    renderFastBar();
+    updateNextMealCountdown();
+    const fi=getFastInfo();
+    checkFastGoalVibrate(fi.fastH, fi.fastGoalH);
+  }
 },60000);
 </script>
 </body>
