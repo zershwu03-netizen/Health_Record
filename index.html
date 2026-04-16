@@ -69,6 +69,8 @@ html, body { height: 100%; background: var(--bg); color: var(--text); font-famil
 /* Pages */
 .page { display: none; padding: 12px 14px; }
 .page.active { display: block; }
+.page-flex { display: none; padding: 0; flex-direction: column; height: 100%; }
+.page-flex.active { display: flex; }
 .page-title { font-size: 22px; font-weight: 600; margin-bottom: 14px; padding-top: 4px; }
 
 /* Cards */
@@ -461,7 +463,7 @@ textarea { resize: none; min-height: 70px; }
     </div>
 
     <!-- AI -->
-    <div id="page-ai" class="page" style="padding:0;display:flex;flex-direction:column;height:100%">
+    <div id="page-ai" class="page page-flex">
       <div style="padding:12px 14px 4px;flex-shrink:0">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div class="page-title" style="margin-bottom:0">飲食教練</div>
@@ -639,12 +641,24 @@ textarea { resize: none; min-height: 70px; }
       </div>
 
       <div class="card">
-        <div class="card-title">關於</div>
-        <p style="font-size:13px;color:var(--text2);line-height:1.6">飲食日記 v1.2<br>資料儲存在本機，不上傳雲端。<br>在 Safari 點「分享 → 加入主畫面」可像 App 一樣使用。</p>
-        <div class="btn-row" style="margin-top:12px">
-          <button class="btn btn-ghost btn-sm" onclick="exportData()">匯出 JSON</button>
-          <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-text)" onclick="clearAll()">清除所有記錄</button>
+        <div class="card-title">資料備份與還原</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:12px">所有設定、飲食記錄、最愛清單都儲存在本機。換手機或清除瀏覽器時記得先備份。</p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-ghost" style="width:100%;justify-content:flex-start;gap:10px" onclick="exportData()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            匯出 JSON（備份所有資料）
+          </button>
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 16px;border-radius:var(--radius-md);border:0.5px solid var(--border2);cursor:pointer;font-size:13px;color:var(--text);background:var(--bg);font-family:inherit" id="import-label">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            匯入 JSON（從備份還原）
+            <input type="file" accept=".json" onchange="importData(event)" style="display:none">
+          </label>
+          <div id="import-result" style="display:none;font-size:12px;padding:8px 12px;border-radius:var(--radius-sm)"></div>
         </div>
+        <div style="border-top:0.5px solid var(--border);margin-top:12px;padding-top:12px">
+          <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red-text);width:100%" onclick="clearAll()">清除所有記錄</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">飲食日記 v1.3 · 在 Safari 點「分享 → 加入主畫面」可像 App 使用</p>
       </div>
     </div>
 
@@ -1666,6 +1680,55 @@ function exportData(){
   const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);
   a.download='diet-'+tk()+'.json';a.click();
+  toast('已匯出備份檔案');
+}
+
+function importData(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const result=document.getElementById('import-result');
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const parsed=JSON.parse(ev.target.result);
+      // Validate: must have sets and logs
+      if(!parsed.sets||typeof parsed.logs!=='object') throw new Error('格式不正確');
+      const oldLogCount=Object.keys(S.logs||{}).length;
+      const newLogCount=Object.keys(parsed.logs||{}).length;
+      // Merge or replace?
+      if(oldLogCount>0){
+        const ok=confirm(`目前有 ${oldLogCount} 天記錄，備份檔有 ${newLogCount} 天記錄。\n\n確定要用備份覆蓋目前所有資料嗎？\n（按取消可保留目前資料）`);
+        if(!ok){
+          result.style.display='block';
+          result.style.background='var(--amber-bg)';
+          result.style.color='var(--amber-text)';
+          result.textContent='已取消，目前資料不變。';
+          return;
+        }
+      }
+      // Restore
+      S=parsed;
+      if(!S.favs) S.favs=[];
+      if(!S.weights) S.weights=[];
+      if(!S.sets.eatWindow) S.sets.eatWindow=8;
+      ss();
+      result.style.display='block';
+      result.style.background='var(--green-bg)';
+      result.style.color='var(--green-text)';
+      result.textContent=`✓ 匯入成功！還原了 ${newLogCount} 天記錄、${(S.favs||[]).length} 個最愛食物。`;
+      renderSettings();
+      renderHome();
+      toast('資料匯入成功！');
+    }catch(err){
+      result.style.display='block';
+      result.style.background='var(--red-bg)';
+      result.style.color='var(--red-text)';
+      result.textContent='匯入失敗：'+err.message+'。請確認是從本 App 匯出的 JSON 檔。';
+    }
+    // Reset file input so same file can be re-selected
+    e.target.value='';
+  };
+  reader.readAsText(file);
 }
 
 function clearAll(){
