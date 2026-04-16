@@ -378,6 +378,19 @@ textarea { resize: none; min-height: 70px; }
             <span class="next-meal-val" id="next-meal-countdown">—</span>
           </div>
         </div>
+        <div class="next-meal-row" style="align-items:flex-start;flex-direction:column;gap:6px">
+          <span style="font-size:12px;color:var(--text2)">手動設定斷食起點（跨天用）</span>
+          <div style="display:flex;gap:8px;width:100%;align-items:center">
+            <select id="fast-start-day" style="flex:1;margin:0;height:32px;font-size:12px;padding:0 6px">
+              <option value="0">今天</option>
+              <option value="1" selected>昨天</option>
+              <option value="2">前天</option>
+            </select>
+            <input type="time" id="fast-start-time" style="flex:1;margin:0;height:32px;font-size:12px;padding:0 8px" placeholder="幾點吃完">
+            <button onclick="setManualFastStart()" style="flex-shrink:0;padding:0 10px;height:32px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit">設定</button>
+          </div>
+          <div id="fast-start-hint" style="font-size:11px;color:var(--text3)">設定後斷食計時從該時間點重新計算</div>
+        </div>
         <div class="btn-row">
           <button class="btn btn-green btn-sm" onclick="markEatNow()">記錄剛剛進食</button>
           <button class="btn btn-ghost btn-sm" onclick="goPage('log')">新增飲食</button>
@@ -706,6 +719,21 @@ textarea { resize: none; min-height: 70px; }
         <div class="btn-row" style="margin-top:8px">
           <button class="btn btn-ghost btn-sm" onclick="requestNotifPerm()">啟用系統通知</button>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Anthropic API Key</div>
+        <p style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:10px">AI 功能（飲食教練、熱量查詢、週報）需要 API Key 才能使用。Key 僅存在本機，不會上傳。</p>
+        <div class="form-group">
+          <label class="form-label">API Key</label>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="s-apikey" placeholder="sk-ant-api03-..." style="flex:1;font-family:monospace;font-size:13px" onchange="saveApiKey()">
+            <button onclick="toggleApiKeyVis()" style="flex-shrink:0;padding:0 12px;height:42px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;font-family:inherit;color:var(--text)">顯示</button>
+          </div>
+        </div>
+        <div id="apikey-status" style="font-size:12px;margin-top:4px"></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="testApiKey()">測試連線</button>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.6">前往 <span style="color:var(--blue-text)">console.anthropic.com</span> → API Keys → Create Key 取得。新帳號有 $5 免費額度。</p>
       </div>
 
       <div class="card">
@@ -1134,7 +1162,7 @@ async function genWeekReport(tab){
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:800,
@@ -1211,7 +1239,7 @@ function showUndoToast(msg, undoFn){
   const cdEl=document.getElementById('undo-countdown');
   document.getElementById('undo-msg').textContent=msg;
   el.classList.add('show');
-  let secs=8;
+  let secs=5;
   if(cdEl) cdEl.textContent=secs;
   undoCountdownInterval=setInterval(()=>{
     secs--;
@@ -1222,7 +1250,7 @@ function showUndoToast(msg, undoFn){
     el.classList.remove('show');
     undoStack=null;
     clearInterval(undoCountdownInterval);
-  },8000);
+  },5000);
 }
 
 function doUndo(){
@@ -1238,6 +1266,27 @@ function markEatNow(){
   S.lastEat=new Date().toISOString();ss();renderFastBar();
   showUndoToast('已記錄進食時間',()=>{
     S.lastEat=prev;ss();renderFastBar();
+  });
+}
+
+function setManualFastStart(){
+  const dayOffset=parseInt(document.getElementById('fast-start-day').value)||1;
+  const timeVal=document.getElementById('fast-start-time').value;
+  if(!timeVal){toast('請選擇吃完的時間');return;}
+  const[h,m]=timeVal.split(':').map(Number);
+  const d=new Date();
+  d.setDate(d.getDate()-dayOffset);
+  d.setHours(h,m,0,0);
+  if(d>new Date()){toast('時間不能是未來');return;}
+  const prev=S.lastEat;
+  S.lastEat=d.toISOString();
+  ss();renderFastBar();renderHome();
+  const hint=document.getElementById('fast-start-hint');
+  const label=['今天','昨天','前天'][dayOffset]||'';
+  if(hint) hint.textContent='✓ 已設定為'+label+' '+timeVal+' 開始斷食';
+  showUndoToast('斷食起點設為'+label+timeVal,()=>{
+    S.lastEat=prev;ss();renderFastBar();
+    if(hint) hint.textContent='設定後斷食計時從該時間點重新計算';
   });
 }
 
@@ -1551,6 +1600,9 @@ function renderSettings(){
   document.getElementById('s-bw').value=S.sets.bw||'';
   document.getElementById('s-activity').value=S.sets.activity||1.375;
   document.getElementById('s-coach-note').value=S.sets.coachNote||'';
+  const keyEl=document.getElementById('s-apikey');
+  if(keyEl) keyEl.value=getApiKey();
+  updateApiKeyStatus();
   document.querySelectorAll('[data-d]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.d)===(S.sets.deficit||500)));
   document.querySelectorAll('[data-cs]').forEach(b=>b.classList.toggle('sel',b.dataset.cs===(S.sets.coachStyle||'gentle')));
   document.querySelectorAll('[data-cw]').forEach(b=>b.classList.toggle('sel',parseInt(b.dataset.cw)===(S.sets.calWarn||90)));
@@ -1687,7 +1739,7 @@ async function callCoachAPI(userMsg, systemOverride){
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:400,
@@ -1735,7 +1787,7 @@ async function sendChat(){
   try{
     const ir=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:10,
@@ -1773,7 +1825,7 @@ async function parseAndAddFoods(userMsg, foodText){
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:600,
@@ -1917,7 +1969,7 @@ async function inlineLookup(){
   try{
     const r=await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:400,
@@ -1961,7 +2013,8 @@ function applyCalLookup(cal, cat){
 async function callAI(q){coachQ(q);}
 
 function exportData(){
-  const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const exportObj=Object.assign({},S,{_apikey:getApiKey()||undefined});
+  const b=new Blob([JSON.stringify(exportObj,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);
   a.download='diet-'+tk()+'.json';a.click();
   toast('已匯出備份檔案');
@@ -1991,6 +2044,7 @@ function importData(e){
         }
       }
       // Restore
+      if(parsed._apikey){localStorage.setItem('diet_apikey',parsed._apikey);delete parsed._apikey;}
       S=parsed;
       if(!S.favs) S.favs=[];
       if(!S.weights) S.weights=[];
@@ -2159,6 +2213,47 @@ function renderWeightChart(){
     <polyline points="${pts}" fill="none" stroke="#378ADD" stroke-width="1.5" stroke-linejoin="round"/>
     ${targetLine}
     ${dots}`;
+}
+
+function getApiKey(){return localStorage.getItem('diet_apikey')||'';}
+
+function saveApiKey(){
+  const val=document.getElementById('s-apikey').value.trim();
+  if(val) localStorage.setItem('diet_apikey',val);
+  else localStorage.removeItem('diet_apikey');
+  updateApiKeyStatus();
+}
+
+function toggleApiKeyVis(){
+  const inp=document.getElementById('s-apikey');
+  const btn=event.target;
+  if(inp.type==='password'){inp.type='text';btn.textContent='隱藏';}
+  else{inp.type='password';btn.textContent='顯示';}
+}
+
+function updateApiKeyStatus(){
+  const el=document.getElementById('apikey-status');
+  if(!el) return;
+  const key=getApiKey();
+  if(!key){el.textContent='尚未設定 API Key，AI 功能無法使用';el.style.color='var(--red-text)';return;}
+  if(!key.startsWith('sk-ant-')){el.textContent='格式不正確，應以 sk-ant- 開頭';el.style.color='var(--amber-text)';return;}
+  el.textContent='✓ API Key 已設定';el.style.color='var(--green-text)';
+}
+
+async function testApiKey(){
+  const key=getApiKey();
+  const el=document.getElementById('apikey-status');
+  if(!key){if(el){el.textContent='請先輸入 API Key';el.style.color='var(--red-text)';}return;}
+  if(el){el.textContent='測試中...';el.style.color='var(--text2)';}
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:10,messages:[{role:'user',content:'hi'}]})
+    });
+    if(r.ok){if(el){el.textContent='✓ 連線成功！API Key 有效';el.style.color='var(--green-text)';}}
+    else{const d=await r.json();if(el){el.textContent='連線失敗：'+(d.error&&d.error.message||r.status);el.style.color='var(--red-text)';}}
+  }catch(e){if(el){el.textContent='連線失敗，請檢查網路';el.style.color='var(--red-text)';}}
 }
 
 ls();renderHome();
