@@ -1718,20 +1718,52 @@ async function sendChat(){
   inp.value='';
   addChatMsg('user',q);
 
-  // Detect "I just ate..." pattern and auto-parse foods
-  const eatPattern=/我(剛|剛剛|剛才)?(吃了|吃|喝了|喝)(.*)/;
-  const match=q.match(eatPattern);
-  if(match&&match[3]&&match[3].trim().length>1){
-    await parseAndAddFoods(q, match[3].trim());
+  // Quick pre-filter: if clearly a question or no food keywords, skip intent check
+  const hasEatKeyword=/吃了|喝了|吃了|吃到/.test(q);
+  if(!hasEatKeyword){
+    addTypingIndicator();
+    const reply=await callCoachAPI(q);
+    removeTypingIndicator();
+    const type=reply.includes('注意')||reply.includes('超標')||reply.includes('禁止')||reply.includes('不建議')?'warn':
+               reply.includes('棒')||reply.includes('很好')||reply.includes('達標')||reply.includes('繼續')?'good':'normal';
+    addChatMsg('coach',reply,type);
     return;
   }
 
+  // Use AI to determine intent: record vs question
   addTypingIndicator();
-  const reply=await callCoachAPI(q);
-  removeTypingIndicator();
-  const type=reply.includes('注意')||reply.includes('超標')||reply.includes('禁止')||reply.includes('不建議')?'warn':
-             reply.includes('棒')||reply.includes('很好')||reply.includes('達標')||reply.includes('繼續')?'good':'normal';
-  addChatMsg('coach',reply,type);
+  try{
+    const ir=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:10,
+        system:'判斷這句話是「正在記錄剛吃的食物」還是「在發問或討論」。只回傳單一單字：record 或 question，不要其他文字。\n判斷標準：\n- record：用戶明確陳述剛剛吃了什麼（例：我剛吃了雞腿、我剛才喝了豆漿）\n- question：任何疑問、假設、過去式、建議請求（例：如果我吃了、我吃了太多怎麼辦、我可以吃嗎、昨天我吃了）',
+        messages:[{role:'user',content:q}]
+      })
+    });
+    const id=await ir.json();
+    const intent=(id.content&&id.content[0]&&id.content[0].text||'question').trim().toLowerCase();
+    removeTypingIndicator();
+
+    if(intent==='record'){
+      await parseAndAddFoods(q, q);
+    } else {
+      addTypingIndicator();
+      const reply=await callCoachAPI(q);
+      removeTypingIndicator();
+      const type=reply.includes('注意')||reply.includes('超標')||reply.includes('禁止')||reply.includes('不建議')?'warn':
+                 reply.includes('棒')||reply.includes('很好')||reply.includes('達標')||reply.includes('繼續')?'good':'normal';
+      addChatMsg('coach',reply,type);
+    }
+  }catch(e){
+    removeTypingIndicator();
+    addTypingIndicator();
+    const reply=await callCoachAPI(q);
+    removeTypingIndicator();
+    addChatMsg('coach',reply,'normal');
+  }
 }
 
 async function parseAndAddFoods(userMsg, foodText){
@@ -1753,7 +1785,6 @@ async function parseAndAddFoods(userMsg, foodText){
     const raw=d.content&&d.content[0]&&d.content[0].text||'[]';
     let items;
     try{items=JSON.parse(raw.replace(/```json|```/g,'').trim());}catch(e){items=null;}
-
     removeTypingIndicator();
 
     if(!items||!items.length){
@@ -1761,29 +1792,94 @@ async function parseAndAddFoods(userMsg, foodText){
       return;
     }
 
-    // Add all foods to today's log
-    items.forEach(f=>{
-      todayLog().foods.push({n:f.name,cal:f.cal||0,cat:f.cat||'other',time:timeStr,note:'',price:0});
-    });
-    S.lastEat=new Date().toISOString();
-    ss();
-
-    const totalC=items.reduce((s,f)=>s+(f.cal||0),0);
-    const list=items.map(f=>`${f.name}（約${f.cal}kcal）`).join('、');
-    const reply=`已記錄 ${timeStr}：${list}。\n合計約 ${totalC} kcal。\n\n花費可以在記錄頁面點選各項目後補填。`;
-    addChatMsg('coach',reply,'good');
-
-    // Refresh home if visible
-    if(document.getElementById('page-home').classList.contains('active')) renderHome();
-    if(document.getElementById('page-log').classList.contains('active')) renderLogList();
-
-    // Coach check
-    items.forEach(f=>coachCheckAfterFood(f.name,f.cal));
+    // Show confirm card instead of directly recording
+    showFoodConfirmCard(items, timeStr);
 
   }catch(e){
     removeTypingIndicator();
     addChatMsg('coach','連線失敗，請稍後再試。','normal');
   }
+}
+
+function showFoodConfirmCard(items, timeStr){
+  const totalC=items.reduce((s,f)=>s+(f.cal||0),0);
+  const itemsJson=JSON.stringify(items).replace(/'/g,'&#39;');
+  const rows=items.map((f,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border)">
+      <div style="flex:1;font-size:13px">${f.name}</div>
+      <input type="number" value="${f.cal}" min="0" style="width:65px;margin:0;height:30px;font-size:13px;text-align:center" onchange="updateConfirmItem(this,${i})">
+      <span style="font-size:11px;color:var(--text2)">kcal</span>
+      <button onclick="removeConfirmItem(this,${i})" style="width:22px;height:22px;border-radius:50%;border:none;background:var(--bg3);cursor:pointer;font-size:13px;color:var(--text2);font-family:inherit;flex-shrink:0">×</button>
+    </div>`).join('');
+
+  const card=`
+    <div class="chat-bubble coach" id="food-confirm-card" style="padding:12px 14px">
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px">確認要記錄以下飲食嗎？</div>
+      <div id="confirm-items-wrap">${rows}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <span style="font-size:12px;color:var(--text2)">合計 <strong id="confirm-total" style="color:var(--amber)">${totalC}</strong> kcal</span>
+        <div style="display:flex;gap:8px">
+          <button onclick="cancelFoodConfirm()" style="padding:6px 14px;background:var(--bg3);color:var(--text);border:none;border-radius:20px;font-size:13px;cursor:pointer;font-family:inherit">取消</button>
+          <button onclick="confirmAddFoods('${timeStr}')" style="padding:6px 14px;background:var(--green);color:#fff;border:none;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit">確認記錄</button>
+        </div>
+      </div>
+    </div>`;
+
+  window._pendingFoodItems=items;
+  const chatEl=document.getElementById('chat-messages');
+  const div=document.createElement('div');
+  div.className='chat-row coach';
+  div.id='food-confirm-row';
+  div.innerHTML=card;
+  chatEl.appendChild(div);
+  chatEl.scrollTop=chatEl.scrollHeight;
+}
+
+function updateConfirmItem(input, idx){
+  if(!window._pendingFoodItems) return;
+  window._pendingFoodItems[idx].cal=parseInt(input.value)||0;
+  const total=window._pendingFoodItems.reduce((s,f)=>s+(f.cal||0),0);
+  const el=document.getElementById('confirm-total');
+  if(el) el.textContent=total;
+}
+
+function removeConfirmItem(btn, idx){
+  if(!window._pendingFoodItems) return;
+  window._pendingFoodItems.splice(idx,1);
+  const row=btn.closest('[style*="border-bottom"]');
+  if(row) row.remove();
+  const total=window._pendingFoodItems.reduce((s,f)=>s+(f.cal||0),0);
+  const el=document.getElementById('confirm-total');
+  if(el) el.textContent=total;
+}
+
+function cancelFoodConfirm(){
+  const row=document.getElementById('food-confirm-row');
+  if(row) row.remove();
+  window._pendingFoodItems=null;
+  addChatMsg('coach','已取消，沒有記錄任何飲食。','normal');
+}
+
+function confirmAddFoods(timeStr){
+  const items=window._pendingFoodItems;
+  if(!items||!items.length) return;
+  const row=document.getElementById('food-confirm-row');
+  if(row) row.remove();
+  window._pendingFoodItems=null;
+
+  items.forEach(f=>{
+    todayLog().foods.push({n:f.name,cal:f.cal||0,cat:f.cat||'other',time:timeStr,note:'',price:0});
+  });
+  S.lastEat=new Date().toISOString();
+  ss();
+
+  const totalC=items.reduce((s,f)=>s+(f.cal||0),0);
+  const list=items.map(f=>`${f.name}（${f.cal}kcal）`).join('、');
+  addChatMsg('coach',`✓ 已記錄 ${timeStr}：${list}。合計 ${totalC} kcal。\n\n花費可以在記錄頁面補填。`,'good');
+
+  if(document.getElementById('page-home').classList.contains('active')) renderHome();
+  if(document.getElementById('page-log').classList.contains('active')) renderLogList();
+  items.forEach(f=>coachCheckAfterFood(f.name,f.cal));
 }
 
 async function coachCheckAfterFood(foodName, cal){
